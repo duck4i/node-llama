@@ -5,7 +5,7 @@
   "main": "index.js",
   "module": "index.mjs",
   "scripts": {
-    "install": "cmake-js build",
+    "install": "cmake-js clean && cmake-js build",
     "rebuild": "cmake-js rebuild",
     "build": "cmake-js build",
     "clean": "cmake-js clean",
