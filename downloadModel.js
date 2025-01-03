@@ -16,7 +16,7 @@ async function downloadModel(url, outputPath) {
         throw new Error('No output path provided');
     }
 
-    const fullPath = path.join(__dirname, outputPath);
+    const fullPath = path.resolve(process.cwd(), outputPath);
 
     try {
         const response = await axios({
