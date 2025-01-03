@@ -1,0 +1,21 @@
+{
+  "name": "@duck4i/llama",
+  "version": "0.1.0",
+  "description": "Native Node.JS plugin to run LLAMA inference directly on your machine with no other dependencies. ",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [
+    "llama",
+    "node",
+    "gguf",
+    "LLM",
+    "inference"
+  ],
+  "author": "duck4i",
+  "license": "MIT",
+  "dependencies": {
+    "cmake-js": "^7.3.0"
+  }
+}
