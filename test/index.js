@@ -1,7 +1,5 @@
 const { RunInference } = require('@duck4i/llama');
 
-console.log("Hello there", RunInference);
-
 const system_prompt = "The following is a conversation with an AI assistant. The assistant is helpful, creative, clever, and very friendly.";
 const user_prompt = "What is human life expectancy of a duck?";
 
