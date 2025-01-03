@@ -19,7 +19,7 @@ Install NPM, download a model, and run it. Simple as.
 ## Installation
 
 ```sh
-npm install @duck4i/npm-llama
+npm install @duck4i/llama
 ```
 
 ## Usage
