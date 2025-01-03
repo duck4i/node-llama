@@ -1,3 +1,5 @@
+#!/usr/bin/env node
+
 const { Command } = require('commander');
 const packageInfo = require('./package.json');
 const { RunInference } = require("bindings")("npm-llama");

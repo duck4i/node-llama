@@ -42,13 +42,13 @@ console.log("Inference", inference);
 ```bash
 
 # Download model
-npm run download -- -u https://huggingface.co/Qwen/Qwen2.5-0.5B-Instruct-GGUF/resolve/main/qwen2.5-0.5b-instruct-fp16.gguf?download=true -p model.gguf
+npx llama-download -- -u https://huggingface.co/Qwen/Qwen2.5-0.5B-Instruct-GGUF/resolve/main/qwen2.5-0.5b-instruct-fp16.gguf?download=true -p model.gguf
 
 # Run inference
-npm run inference -- -m model.gguf -p "How old can ducks get?"
+npx llama-run -- -m model.gguf -p "How old can ducks get?"
 
 # Run with system prompt
-npm run inference -- -m model.gguf -p "How old can ducks get?" -s "[System prompt...]"
+npx llama-run -- -m model.gguf -p "How old can ducks get?" -s "[System prompt...]"
 
 ```
 
