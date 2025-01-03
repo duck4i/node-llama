@@ -10,7 +10,7 @@ Install NPM, download a model, and run it. Simple as.
 
 ## Features
 
-- No external dependencies
+- No external dependencies (beside GCC and CMake)
 - High performance
 - Supports most LLM models
 - Easy to use API
