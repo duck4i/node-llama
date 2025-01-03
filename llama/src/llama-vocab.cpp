@@ -1,5 +1,7 @@
 #include "llama-vocab.h"
 
+#include "llama-impl.h"
+
 #include "unicode.h"
 
 #include <algorithm>
@@ -15,22 +17,6 @@
 //
 // helpers
 //
-
-LLAMA_ATTRIBUTE_FORMAT(1, 2)
-static std::string format(const char * fmt, ...) {
-    va_list ap;
-    va_list ap2;
-    va_start(ap, fmt);
-    va_copy(ap2, ap);
-    int size = vsnprintf(NULL, 0, fmt, ap);
-    GGML_ASSERT(size >= 0 && size < INT_MAX); // NOLINT
-    std::vector<char> buf(size + 1);
-    int size2 = vsnprintf(buf.data(), size + 1, fmt, ap2);
-    GGML_ASSERT(size2 == size);
-    va_end(ap2);
-    va_end(ap);
-    return std::string(buf.data(), size);
-}
 
 struct naive_trie {
     naive_trie() : has_value(false), value(0) {
@@ -738,7 +724,7 @@ struct llm_tokenizer_wpm_session {
         std::vector<std::string> words(1, "");
 
         for (const uint32_t cpt : cpts_nfd) {
-            const auto flags = unicode_cpt_flags(cpt);
+            const auto flags = unicode_cpt_flags_from_cpt(cpt);
 
             if (flags.is_whitespace) {
                 if (words.back().size()) {  // finish previous word if any
@@ -1657,7 +1643,7 @@ bool llama_token_is_control_impl(const struct llama_vocab & vocab, llama_token t
 }
 
 llama_token llama_token_bos_impl(const struct llama_vocab & vocab) {
-    return vocab.special_bos_id;
+    return vocab.type != LLAMA_VOCAB_TYPE_WPM ? vocab.special_bos_id : vocab.special_cls_id;
 }
 
 llama_token llama_token_eos_impl(const struct llama_vocab & vocab) {
@@ -1867,6 +1853,10 @@ int32_t llama_detokenize_impl(
                          int32_t   text_len_max,
                             bool   remove_special,
                             bool   unparse_special) {
+    if (vocab.type == LLAMA_VOCAB_TYPE_NONE) {
+        return 0;
+    }
+
     GGML_ASSERT(vocab.tokenizer && "Tokenizer not initialized. Call llama_vocab::init_tokenizer() first.");
 
     int32_t avail = text_len_max;
