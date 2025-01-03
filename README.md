@@ -14,6 +14,7 @@ Install NPM, download a model, and run it. Simple as.
 - High performance
 - Supports most LLM models
 - Easy to use API
+- Command line for direct inference and model download
 
 ## Installation
 
@@ -33,6 +34,21 @@ const user_prompt = "What is human life expectancy of a duck?";
 const inference = RunInference("model.gguf", system_prompt, user_prompt);
 
 console.log("Inference", inference);
+
+```
+
+## Command line 
+
+```bash
+
+# Download model
+npm run download -- -u https://huggingface.co/Qwen/Qwen2.5-0.5B-Instruct-GGUF/resolve/main/qwen2.5-0.5b-instruct-fp16.gguf?download=true -p model.gguf
+
+# Run inference
+npm run inference -- -m model.gguf -p "How old can ducks get?"
+
+# Run with system prompt
+npm run inference -- -m model.gguf -p "How old can ducks get?" -s "[System prompt...]"
 
 ```
 

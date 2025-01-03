@@ -10,7 +10,8 @@
     "configure": "cmake-js reconfigure",
     "compile": "cmake-js compile",
     "test": "echo \"Error: no test specified\" && exit 1",
-    "download": "node downloadModel.js"
+    "download": "node downloadModel.js",
+    "inference": "node inference.js"
   },
   "binary": {
     "napi_versions": [
@@ -35,6 +36,7 @@
     "axios": "^1.7.9",
     "bindings": "^1.5.0",
     "cmake-js": "^7.3.0",
+    "commander": "^13.0.0",
     "node-addon-api": "^8.3.0"
   }
 }
