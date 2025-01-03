@@ -1,3 +1,5 @@
+#!/usr/bin/env node
+
 const { Command } = require('commander');
 const packageInfo = require('./package.json');
 
@@ -14,7 +16,7 @@ async function downloadModel(url, outputPath) {
         throw new Error('No output path provided');
     }
 
-    const fullPath = path.join(__dirname, outputPath);
+    const fullPath = path.resolve(process.cwd(), outputPath);
 
     try {
         const response = await axios({

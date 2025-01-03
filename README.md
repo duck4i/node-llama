@@ -10,7 +10,7 @@ Install NPM, download a model, and run it. Simple as.
 
 ## Features
 
-- No external dependencies
+- No external dependencies (beside GCC and CMake)
 - High performance
 - Supports most LLM models
 - Easy to use API
@@ -19,7 +19,7 @@ Install NPM, download a model, and run it. Simple as.
 ## Installation
 
 ```sh
-npm install @duck4i/npm-llama
+npm install @duck4i/llama
 ```
 
 ## Usage
@@ -42,13 +42,13 @@ console.log("Inference", inference);
 ```bash
 
 # Download model
-npm run download -- -u https://huggingface.co/Qwen/Qwen2.5-0.5B-Instruct-GGUF/resolve/main/qwen2.5-0.5b-instruct-fp16.gguf?download=true -p model.gguf
+npx llama-download -u https://huggingface.co/Qwen/Qwen2.5-0.5B-Instruct-GGUF/resolve/main/qwen2.5-0.5b-instruct-fp16.gguf?download=true -p model.gguf
 
 # Run inference
-npm run inference -- -m model.gguf -p "How old can ducks get?"
+npx llama-run -m model.gguf -p "How old can ducks get?"
 
 # Run with system prompt
-npm run inference -- -m model.gguf -p "How old can ducks get?" -s "[System prompt...]"
+npx llama-run -m model.gguf -p "How old can ducks get?" -s "[System prompt...]"
 
 ```
 
