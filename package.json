@@ -22,6 +22,7 @@
     "LLM",
     "inference"
   ],
+  "type": "commonjs",
   "author": "duck4i",
   "license": "MIT",
   "repository": {
