@@ -3,6 +3,7 @@
   "version": "0.1.0",
   "description": "Native Node.JS plugin to run LLAMA inference directly on your machine with no other dependencies. ",
   "main": "index.js",
+  "module": "index.mjs",
   "scripts": {
     "build": "cmake-js build",
     "clean": "cmake-js clean",
