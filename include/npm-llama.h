@@ -3,6 +3,8 @@
 
 #include <napi.h>
 
+Napi::Value SetLogLevel(const Napi::CallbackInfo& info);
+
 Napi::Value RunInference(const Napi::CallbackInfo &info);
 
 Napi::Value LoadModelAsync(const Napi::CallbackInfo& info);
