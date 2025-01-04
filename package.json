@@ -1,11 +1,11 @@
 {
   "name": "@duck4i/llama",
-  "version": "0.1.4",
+  "version": "0.1.5",
   "description": "Native Node.JS plugin to run LLAMA inference directly on your machine with no other dependencies. ",
   "main": "index.js",
   "module": "index.mjs",
   "scripts": {
-    "install": "cmake-js clean && cmake-js build",
+    "install": "cmake-js compile",
     "rebuild": "cmake-js rebuild",
     "build": "cmake-js build",
     "clean": "cmake-js clean",
