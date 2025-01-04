@@ -1,4 +1,4 @@
-const { RunInferenceAsync, LoadModelAsync, ReleaseModelAsync } = require('@duck4i/llama');
+const { RunInferenceAsync, LoadModelAsync, CreateContextAsync, ReleaseContextAsync, ReleaseModelAsync } = require('@duck4i/llama');
 
 const infer = async () => {
 
@@ -10,13 +10,15 @@ const infer = async () => {
     ]
 
     const model = await LoadModelAsync("model.gguf");
+    const ctx = await CreateContextAsync(model);
     console.log("Model loaded\n", model);
 
     for (const prompt of prompts) {
-        const inference = await RunInferenceAsync(model, system_prompt, prompt, /*optional*/ 1024);
+        const inference = await RunInferenceAsync(model, ctx, prompt, system_prompt, /*optional*/ 1024);
         console.log("Inference\n", inference);
     }
 
+    await ReleaseContextAsync(ctx);
     await ReleaseModelAsync(model);
 
 }

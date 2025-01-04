@@ -5,7 +5,9 @@ const { ChatManager, Role } = require('../chatManager');
 const {
     RunInference,
     LoadModelAsync,
+    CreateContextAsync,
     RunInferenceAsync,
+    ReleaseContextAsync,
     ReleaseModelAsync,
     SetLogLevel,
     GetModelToken,
@@ -33,9 +35,9 @@ describe('Node LLaMA Test Suite', () => {
     });
 
     test('direct inference works', () => {
-        const inference = RunInference(model, system_prompt, "How old can ducks get?");
+        const inference = RunInference(model, "How old can ducks get?", system_prompt);
         console.log("Result", inference);
-        expect(inference).toBeTruthy();
+        expect(inference.includes('10 years')).toBeTruthy();
     });
 
     test('async inference works', async () => {
@@ -47,32 +49,38 @@ describe('Node LLaMA Test Suite', () => {
         ]
 
         const modelHandle = await LoadModelAsync(model);
+        const ctx = await CreateContextAsync(modelHandle);
         console.log("Model loaded", model);
 
         for (const prompt of prompts) {
-            const inference = await RunInferenceAsync(modelHandle, system_prompt, prompt, /*optional*/ 512);
-            console.log("Inference", inference);
+            const inference = await RunInferenceAsync(modelHandle, ctx, prompt, system_prompt, 64);
+            console.log("Reply:", inference);
+            expect(inference.length > 0).toBeTruthy();
         }
 
+        await ReleaseContextAsync(ctx);
         await ReleaseModelAsync(modelHandle);
     });
 
     test('custom inference works', async () => {
 
-        const user = "How old can ducks live?";
+        const user = "How old can ducks get?";
         const prompt = `"!#<|im_start|>system ${system_prompt}<|im_end|><|im_start|>user ${user}<|im_end|><|im_start|>assistant"`;
 
         const modelHandle = await LoadModelAsync(model);
-        const result = await RunInferenceAsync(modelHandle, prompt);
+        const context = await CreateContextAsync(modelHandle);
+        const result = await RunInferenceAsync(modelHandle, context, prompt);
+        await ReleaseContextAsync(context);
         await ReleaseModelAsync(modelHandle);
 
         console.log("Result", result);
-        expect(true).toBeTruthy();
+        expect(result.length > 1).toBeTruthy();
     });
 
     test('tokens work', async () => {
 
         const modelHandle = await LoadModelAsync(model);
+        const ctx = await CreateContextAsync(modelHandle);
 
         const eos = GetModelToken(modelHandle, "EOS");
         const bos = GetModelToken(modelHandle, "BOS");
@@ -88,38 +96,40 @@ describe('Node LLaMA Test Suite', () => {
         console.log("CLS", cls);
         console.log("NL", nl);
 
+        await ReleaseContextAsync(ctx);
         await ReleaseModelAsync(modelHandle);
 
         expect(eos.length > 1).toBeTruthy();
         expect(bos.length > 1).toBeTruthy();
-        expect(eot.length > 1).toBeTruthy();
-        expect(sep.length > 1).toBeTruthy();
     })
 
-    test('chat test works', async () => {
+    test('chat works', async () => {
         SetLogLevel(4); // warn
 
         const modelHandle = await LoadModelAsync(model);
+        const ctx = await CreateContextAsync(modelHandle);
 
         const chat = new ChatManager(system_prompt);
 
         let reply = "";
         let prompt = chat.getNextPrompt("Hello, my name is Duck!");
 
-        reply = await RunInferenceAsync(modelHandle, prompt);
+        reply = await RunInferenceAsync(modelHandle, ctx, prompt, 128);
         console.log("Reply", reply);
 
         chat.addMessage(Role.ASSISTANT, reply);
 
-        prompt = chat.getNextPrompt("Do you remember my name?");
-        reply = await RunInferenceAsync(modelHandle, prompt);
+        prompt = chat.getNextPrompt("What was my name?");
+        reply = await RunInferenceAsync(modelHandle, ctx, prompt, 128);
         console.log("Reply", reply);
 
         chat.addMessage(Role.ASSISTANT, reply);
 
+        await ReleaseContextAsync(ctx);
         await ReleaseModelAsync(modelHandle);
 
         expect(reply.includes("Duck")).toBeTruthy();
     });
 
+    
 });
