@@ -19,6 +19,6 @@ const options = program.opts();
 
 console.log(`Model path: ${options.model}\nUser prompt: ${options.prompt}\nSystem prompt: ${options.system}\n`);
 
-const inference = RunInference(`${options.model}`, `${options.system}`, `${options.prompt}`);
+const inference = RunInference(`${options.model}`, `${options.prompt}`, `${options.system}`);
 
-console.log(inference);
+console.log(inference.trim());

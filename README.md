@@ -51,7 +51,7 @@ const { RunInference } = require('@duck4i/llama');
 const system_prompt = "The following is a conversation with an AI assistant. The assistant is helpful, creative, clever, and very friendly.";
 const user_prompt = "What is life expectancy of a duck?";
 
-const inference = RunInference("model.gguf", system_prompt, user_prompt);
+const inference = RunInference("model.gguf", user_prompt, system_prompt, /*optional*/ 512);
 
 console.log("Answer", inference);
 
@@ -60,7 +60,7 @@ console.log("Answer", inference);
 It is likely you will want async functions for better memory management with multiple prompts, which is done like this:
 
 ```javascript
-const { LoadModelAsync, RunInferenceAsync, ReleaseModelAsync } = require('@duck4i/llama');
+const { LoadModelAsync, CreateContextAsync, RunInferenceAsync, ReleaseContextAsync, ReleaseModelAsync } = require('@duck4i/llama');
 
 const system_prompt = "The following is a conversation with an AI assistant. The assistant is helpful, creative, clever, and very friendly.";
 const prompts = [
@@ -70,16 +70,49 @@ const prompts = [
 ]
 
 const model = await LoadModelAsync("model.gguf");
-console.log("Model loaded\n", model);
+const ctx = await CreateContextAsync(model, /*optional n_ctx*/ 0, /*optional flash_att*/ true);
+console.log("Model loaded", model);
 
 for (const prompt of prompts) {
-    const inference = await RunInferenceAsync(model, system_prompt, prompt, /*optional max tokens*/ 1024);
-    console.log("Answer:\n", inference);
+    const inference = await RunInferenceAsync(model, ctx, prompt, system_prompt, /*optional max tokens*/ 512);
+    console.log("Answer:", inference);
 }
 
+await ReleaseContextAsync(model);
 await ReleaseModelAsync(model);
 
 ```
+
+### Model format
+
+Its likely you will want more control over the model, so you can push the complete formatted prompt to it with prefix `!#`, like this:
+
+```javascript
+
+const system = "You are ...";
+const user = "...";
+
+//  QWEN example (prefix !# will get removed before reaching the llm)
+const prompt = `"!#<|im_start|>system ${system}<|im_end|><|im_start|>user ${user}<|im_end|><|im_start|>assistant"`;
+
+const reply = await RunInferenceAsync(modelHandle, prompt, /*optional max token*/ 128)
+
+```
+
+Getting tokens from model is done by `GetModelToken` method.
+
+```javascript
+
+const eos = GetModelToken(modelHandle, "EOS");
+const bos = GetModelToken(modelHandle, "BOS");
+const eot = GetModelToken(modelHandle, "EOT");
+const sep = GetModelToken(modelHandle, "SEP");
+const cls = GetModelToken(modelHandle, "CLS");
+const nl = GetModelToken(modelHandle, "NL");
+
+```
+
+### Logging control
 
 You can control log levels coming from llamacpp like this:
 

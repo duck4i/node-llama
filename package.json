@@ -1,6 +1,6 @@
 {
   "name": "@duck4i/llama",
-  "version": "0.1.7",
+  "version": "0.1.8",
   "description": "Native Node.JS plugin to run LLAMA inference directly on your machine with no other dependencies. ",
   "main": "index.js",
   "module": "index.mjs",
@@ -11,13 +11,11 @@
     "clean": "cmake-js clean",
     "configure": "cmake-js reconfigure",
     "compile": "cmake-js compile",
-    "test": "jest",
-    "download": "node downloadModel.js",
-    "inference": "node inference.js"
+    "test": "jest"
   },
   "bin": {
-    "llama-download": "./downloadModel.js",
-    "llama-run": "./inference.js"
+    "llama-download": "./tool_download.js",
+    "llama-run": "./tool_inference.js"
   },
   "binary": {
     "napi_versions": [
