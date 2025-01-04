@@ -1,6 +1,6 @@
 {
   "name": "@duck4i/llama",
-  "version": "0.1.7",
+  "version": "0.1.8",
   "description": "Native Node.JS plugin to run LLAMA inference directly on your machine with no other dependencies. ",
   "main": "index.js",
   "module": "index.mjs",
