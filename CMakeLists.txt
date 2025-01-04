@@ -16,7 +16,10 @@ if(EXISTS "${CMAKE_BINARY_DIR}/CMakeCache.txt")
 endif()
 
 # Configure Metal options
-set(GGML_METAL_EMBED_LIBRARY ON CACHE BOOL "Embed metal library" FORCE)
+if(APPLE)
+    set(GGML_METAL_EMBED_LIBRARY ON CACHE BOOL "Embed metal library" FORCE)
+    set(GGML_METAL_USE_BF16 ON CACHE BOOL "Enable BF16 support" FORCE)
+endif()
 
 # Create build directories with proper permissions
 execute_process(
