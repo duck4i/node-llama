@@ -36,7 +36,7 @@
   "license": "MIT",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/duck4i/npm-llama.git"
+    "url": "git+https://github.com/duck4i/node-llama.git"
   },
   "dependencies": {
     "bindings": "^1.5.0",
