@@ -43,6 +43,15 @@ std::string runInference(llama_model *model, const std::string &system_prompt,
     //  for chat and multimodal use. If not we default to the llama format prompt.
     bool isFullPrompt = system_prompt.size() > 2 && system_prompt[0] == '!' && system_prompt[1] == '#';
 
+    llama_token bos = llama_token_bos(model);
+    llama_token eos = llama_token_eos(model);
+
+    const char *bos_str = llama_token_get_text(model, bos);
+    const char *eos_str = llama_token_get_text(model, eos);
+
+    printf("BOS: %s\n", bos_str);
+    printf("EOS: %s\n", eos_str);
+
     std::string llama_format_prompt = "<|im_start|>system " + system_prompt + "<|im_end|>" +
                                       "<|im_start|>user " + user_prompt + "<|im_end|>" +
                                       "<|im_start|>assistant";
@@ -188,6 +197,70 @@ Napi::Value RunInference(const Napi::CallbackInfo &info)
     }
 
     return Napi::String::New(env, response);
+}
+
+Napi::Value GetModelToken(const Napi::CallbackInfo &info)
+{
+    Napi::Env env = info.Env();
+
+    if (info.Length() < 2 || !info[0].IsExternal() || !info[1].IsString())
+    {
+        Napi::TypeError::New(env, "Model handle expected").ThrowAsJavaScriptException();
+        return env.Undefined();
+    }
+
+    llama_model *model = info[0].As<Napi::External<llama_model>>().Data();
+    if (!model)
+    {
+        Napi::TypeError::New(env, "Invalid model handle").ThrowAsJavaScriptException();
+        return env.Undefined();
+    }
+
+    std::string token_name = info[1].As<Napi::String>().Utf8Value();
+    if (token_name.length() < 1)
+    {
+        Napi::TypeError::New(env, "Token name expected").ThrowAsJavaScriptException();
+        return env.Undefined();
+    }
+
+    llama_token token = -1;
+
+    if (token_name == "BOS")
+    {
+        token = llama_token_bos(model);
+    }
+    else if (token_name == "EOS")
+    {
+        token = llama_token_eos(model);
+    }
+    else if (token_name == "PAD")
+    {
+        token = llama_token_pad(model);
+    }
+    else if (token_name == "EOT")
+    {
+        token = llama_token_eot(model);
+    }
+    else if (token_name == "SEP")
+    {
+        token = llama_token_sep(model);
+    }
+    else if (token_name == "CLS")
+    {
+        token = llama_token_cls(model);
+    }
+    else if (token_name == "NL")
+    {
+        token = llama_token_nl(model);
+    }
+    else
+    {
+        Napi::TypeError::New(env, "Unknown token type").ThrowAsJavaScriptException();
+        return env.Undefined();
+    }
+
+    const char *tokenValue = token > 0 ? llama_token_get_text(model, token) : nullptr;
+    return tokenValue == nullptr ? env.Undefined() : Napi::String::New(env, tokenValue);
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -415,6 +488,8 @@ Napi::Value ReleaseModelAsync(const Napi::CallbackInfo &info)
 Napi::Object Init(Napi::Env env, Napi::Object exports)
 {
     exports.Set("SetLogLevel", Napi::Function::New(env, SetLogLevel));
+
+    exports.Set("GetModelToken", Napi::Function::New(env, GetModelToken));
 
     exports.Set("RunInference", Napi::Function::New(env, RunInference));
 

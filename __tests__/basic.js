@@ -2,7 +2,14 @@ const { execSync } = require('child_process');
 const fs = require('fs');
 
 const { ChatManager, Role } = require('../chatManager');
-const { RunInference, LoadModelAsync, RunInferenceAsync, ReleaseModelAsync, SetLogLevel } = require("bindings")("npm-llama");
+const {
+    RunInference,
+    LoadModelAsync,
+    RunInferenceAsync,
+    ReleaseModelAsync,
+    SetLogLevel,
+    GetModelToken,
+} = require("bindings")("npm-llama");
 
 const model = "model.gguf";
 const modelUrl = "https://huggingface.co/Qwen/Qwen2.5-0.5B-Instruct-GGUF/resolve/main/qwen2.5-0.5b-instruct-fp16.gguf?download=true";
@@ -62,6 +69,32 @@ describe('Node LLaMA Test Suite', () => {
         console.log("Result", result);
         expect(true).toBeTruthy();
     });
+
+    test('tokens work', async () => {
+
+        const modelHandle = await LoadModelAsync(model);
+
+        const eos = GetModelToken(modelHandle, "EOS");
+        const bos = GetModelToken(modelHandle, "BOS");
+        const eot = GetModelToken(modelHandle, "EOT");
+        const sep = GetModelToken(modelHandle, "SEP");
+        const cls = GetModelToken(modelHandle, "CLS");
+        const nl = GetModelToken(modelHandle, "NL");
+
+        console.log("EOS", eos);
+        console.log("BOS", bos);
+        console.log("EOT", eot);
+        console.log("SEP", sep);
+        console.log("CLS", cls);
+        console.log("NL", nl);
+
+        await ReleaseModelAsync(modelHandle);
+
+        expect(eos.length > 1).toBeTruthy();
+        expect(bos.length > 1).toBeTruthy();
+        expect(eot.length > 1).toBeTruthy();
+        expect(sep.length > 1).toBeTruthy();
+    })
 
     test('chat test works', async () => {
         SetLogLevel(4); // warn

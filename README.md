@@ -97,6 +97,19 @@ const reply = await RunInferenceAsync(modelHandle, prompt, /*optional max token*
 
 ```
 
+Getting tokens from model is done by `GetModelToken` method.
+
+```javascript
+
+const eos = GetModelToken(modelHandle, "EOS");
+const bos = GetModelToken(modelHandle, "BOS");
+const eot = GetModelToken(modelHandle, "EOT");
+const sep = GetModelToken(modelHandle, "SEP");
+const cls = GetModelToken(modelHandle, "CLS");
+const nl = GetModelToken(modelHandle, "NL");
+
+```
+
 ### Logging control
 
 You can control log levels coming from llamacpp like this:
