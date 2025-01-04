@@ -1,4 +1,4 @@
-# NPM-LLAMA
+# NODE-LLAMA
 
 Run llama cpp locally inside your Node environment. 
 
