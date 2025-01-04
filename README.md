@@ -57,8 +57,8 @@ const prompts = [
 const model = await LoadModelAsync("model.gguf");
 console.log("Model loaded\n", model);
 
-for (let prompt of prompts) {
-    inference = await RunInferenceAsync(model, system_prompt, prompt, /*optional*/ 1024);
+for (const prompt of prompts) {
+    const inference = await RunInferenceAsync(model, system_prompt, prompt, /*optional*/ 1024);
     console.log("Inference\n", inference);
 }
 
