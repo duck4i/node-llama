@@ -19,7 +19,7 @@ include_directories(
 )
 
 #   MacOS build metal shaders
-set(GGML_METAL_EMBED_LIBRARY ON CACHE BOOL "Embed metal library" FORCE)
+set(DGGML_NO_METAL ON CACHE BOOL "No metal library" FORCE)
 
 # Add subdirectory for ggml and llama
 add_subdirectory(ggml)
