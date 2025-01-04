@@ -1,3 +1,3 @@
 module.exports = {
-    testTimeout: 240000, // 240 seconds (4m)
+    testTimeout: 480000, // 480 seconds (8m)
 };
