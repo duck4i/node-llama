@@ -18,6 +18,9 @@ include_directories(
     ${CMAKE_SOURCE_DIR}/include
 )
 
+#   MacOS build metal shaders
+set(GGML_METAL_EMBED_LIBRARY ON CACHE BOOL "Embed metal library" FORCE)
+
 # Add subdirectory for ggml and llama
 add_subdirectory(ggml)
 add_subdirectory(llama/src)
