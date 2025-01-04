@@ -31,6 +31,9 @@
     "LLM",
     "inference"
   ],
+  "engines": {
+    "node": ">=18.0.0"
+  },
   "type": "commonjs",
   "author": "duck4i",
   "license": "MIT",
