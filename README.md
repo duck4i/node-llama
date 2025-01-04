@@ -113,6 +113,8 @@ All models supported by `llamacpp` natively are supported here too, so do check 
 
 Please keep in mind that CUDA is not enabled yet due to complex dependencies so keep the model size in check.
 
+On MacOS, the Metal backend should come included.
+
 ## Contributing
 
 Contributions are welcome! Please open an issue or submit a pull request.
