@@ -19,7 +19,7 @@ describe('Node LLaMA Test Suite', () => {
     });
 
     test('log level works', () => {
-        SetLogLevel(4);
+        SetLogLevel(1); // debug logs
         expect(true).toBeTruthy();
     });
 
