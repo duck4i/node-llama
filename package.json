@@ -1,6 +1,6 @@
 {
   "name": "@duck4i/llama",
-  "version": "0.1.5",
+  "version": "0.1.6",
   "description": "Native Node.JS plugin to run LLAMA inference directly on your machine with no other dependencies. ",
   "main": "index.js",
   "module": "index.mjs",
@@ -11,7 +11,7 @@
     "clean": "cmake-js clean",
     "configure": "cmake-js reconfigure",
     "compile": "cmake-js compile",
-    "test": "echo \"Error: no test specified\" && exit 1",
+    "test": "node ./test/index.js",
     "download": "node downloadModel.js",
     "inference": "node inference.js"
   },
@@ -39,10 +39,12 @@
     "url": "git+https://github.com/duck4i/npm-llama.git"
   },
   "dependencies": {
-    "axios": "^1.7.9",
     "bindings": "^1.5.0",
     "cmake-js": "^7.3.0",
-    "commander": "^13.0.0",
     "node-addon-api": "^8.3.0"
+  },
+  "devDependencies": {
+    "axios": "^1.7.9",
+    "commander": "^13.0.0"
   }
 }

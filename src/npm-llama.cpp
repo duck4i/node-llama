@@ -1,9 +1,22 @@
 #include "npm-llama.h"
 #include "llama-cpp.h"
 
+////////////////////////////////////////////////////////////////////////////////////////////////////
+// INFERENCE
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+int g_logLevel = GGML_LOG_LEVEL_WARN;
+
+void log(ggml_log_level level, const char *text, void *data)
+{
+    if ((level >= g_logLevel && level != GGML_LOG_LEVEL_CONT) && text != nullptr)
+        printf("%s", text);
+}
+
 llama_model *loadModel(const std::string &model_path)
 {
     ggml_backend_load_all();
+    llama_log_set(log, nullptr);
 
     llama_model_params model_params = llama_model_default_params();
     llama_model *model = llama_load_model_from_file(model_path.c_str(), model_params);
@@ -124,6 +137,26 @@ void releaseModel(llama_model *model)
     {
         llama_free_model(model);
     }
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+// SYNC
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+Napi::Value SetLogLevel(const Napi::CallbackInfo& info)
+{
+    Napi::Env env = info.Env();
+
+    if (info.Length() < 1 || !info[0].IsNumber())
+    {
+        Napi::TypeError::New(env, "Expected a number").ThrowAsJavaScriptException();
+        return env.Null();
+    }
+
+    int log_level = info[0].As<Napi::Number>().Int32Value();
+    g_logLevel = log_level;
+
+    return env.Undefined();
 }
 
 Napi::Value RunInference(const Napi::CallbackInfo &info)
@@ -352,6 +385,8 @@ Napi::Value ReleaseModelAsync(const Napi::CallbackInfo &info)
 // Module initialization
 Napi::Object Init(Napi::Env env, Napi::Object exports)
 {
+    exports.Set("SetLogLevel", Napi::Function::New(env, SetLogLevel));
+
     exports.Set("RunInference", Napi::Function::New(env, RunInference));
 
     exports.Set("LoadModelAsync", Napi::Function::New(env, LoadModelAsync));
