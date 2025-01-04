@@ -19,13 +19,11 @@ endif()
 set(GGML_METAL_EMBED_LIBRARY ON CACHE BOOL "Embed metal library" FORCE)
 
 # Create build directories with proper permissions
-if(APPLE)
-    execute_process(
-        COMMAND mkdir -p "${CMAKE_BINARY_DIR}/Release"
-        COMMAND chmod -R 755 "${CMAKE_BINARY_DIR}"
-        COMMAND chmod -R 755 "${CMAKE_BINARY_DIR}/Release"
-    )
-endif()
+execute_process(
+    COMMAND mkdir -p "${CMAKE_BINARY_DIR}/Release"
+    COMMAND chmod -R 755 "${CMAKE_BINARY_DIR}"
+    COMMAND chmod -R 755 "${CMAKE_BINARY_DIR}/Release"
+)
 
 # Include directories for headers
 include_directories(BEFORE ${CMAKE_JS_INC})
@@ -51,10 +49,8 @@ if(MSVC AND CMAKE_JS_NODELIB_DEF AND CMAKE_JS_NODELIB_TARGET)
 endif()
 
 # Ensure output directories remain writable
-if(APPLE)
-    add_custom_command(
-        TARGET ${PROJECT_NAME}
-        POST_BUILD
-        COMMAND chmod -R 755 "${CMAKE_BINARY_DIR}/Release"
-    )
-endif()
+add_custom_command(
+    TARGET ${PROJECT_NAME}
+    POST_BUILD
+    COMMAND chmod -R 755 "${CMAKE_BINARY_DIR}/Release"
+)
