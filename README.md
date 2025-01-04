@@ -2,6 +2,19 @@
 
 Run llama cpp locally inside your Node environment. 
 
+# Build Status
+
+| OS      | Node 16 | Node 18 | Node 20 |
+|---------|---------|---------|---------|
+| Ubuntu  | [![Ubuntu Node 16](https://github.com/duck4i/node-llama/actions/workflows/build.yml/badge.svg?branch=main&jobName=build%20(ubuntu-latest%2C%2016.x))](https://github.com/duck4i/node-llama/actions/workflows/build.yml) | [![Ubuntu Node 18](https://github.com/duck4i/node-llama/actions/workflows/build.yml/badge.svg?branch=main&jobName=build%20(ubuntu-latest%2C%2018.x))](https://github.com/duck4i/node-llama/actions/workflows/build.yml) | [![Ubuntu Node 20](https://github.com/duck4i/node-llama/actions/workflows/build.yml/badge.svg?branch=main&jobName=build%20(ubuntu-latest%2C%2020.x))](https://github.com/duck4i/node-llama/actions/workflows/build.yml) |
+| macOS   | [![macOS Node 16](https://github.com/duck4i/node-llama/actions/workflows/build.yml/badge.svg?branch=main&jobName=build%20(macos-latest%2C%2016.x))](https://github.com/duck4i/node-llama/actions/workflows/build.yml) | [![macOS Node 18](https://github.com/duck4i/node-llama/actions/workflows/build.yml/badge.svg?branch=main&jobName=build%20(macos-latest%2C%2018.x))](https://github.com/duck4i/node-llama/actions/workflows/build.yml) | [![macOS Node 20](https://github.com/duck4i/node-llama/actions/workflows/build.yml/badge.svg?branch=main&jobName=build%20(macos-latest%2C%2020.x))](https://github.com/duck4i/node-llama/actions/workflows/build.yml) |
+| Windows | [![Windows Node 16](https://github.com/duck4i/node-llama/actions/workflows/build.yml/badge.svg?branch=main&jobName=build%20(windows-latest%2C%2016.x))](https://github.com/duck4i/node-llama/actions/workflows/build.yml) | [![Windows Node 18](https://github.com/duck4i/node-llama/actions/workflows/build.yml/badge.svg?branch=main&jobName=build%20(windows-latest%2C%2018.x))](https://github.com/duck4i/node-llama/actions/workflows/build.yml) | [![Windows Node 20](https://github.com/duck4i/node-llama/actions/workflows/build.yml/badge.svg?branch=main&jobName=build%20(windows-latest%2C%2020.x))](https://github.com/duck4i/node-llama/actions/workflows/build.yml) |
+
+# Package Info
+[![npm version](https://badge.fury.io/js/@duck4i%2Fllama.svg)](https://badge.fury.io/js/@duck4i%2Fllama)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+[![Node Version](https://img.shields.io/node/v/@duck4i/llama)](https://www.npmjs.com/package/@duck4i/llama)
+
 ## Reasoning 
 
 Sometimes you just need a **small model** that can run anywhere and can't be bothered with making REST calls to services like OpenRouter or Ollama. 
