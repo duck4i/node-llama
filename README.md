@@ -26,7 +26,7 @@ npm install @duck4i/llama
 Please note that you need CMake and GCC installed if you don't have it already, as the plugin is cpp based.
 
 ```sh
-sudo apt install cmake g++
+sudo apt-get install -y build-essential cmake g++
 ```
 
 ## Usage
