@@ -1,11 +1,21 @@
-const { RunInference, SetLogLevel } = require('@duck4i/llama');
+const { RunInference, SetLogLevel, downloadModel } = require('@duck4i/llama');
 
-// 0 - none, 1 - debug, 2 - info, 3 - warn, 4 - error
-SetLogLevel(1); // enable debug
+const download = async () => {
+    await downloadModel(
+        "https://huggingface.co/Qwen/Qwen2.5-0.5B-Instruct-GGUF/resolve/main/qwen2.5-0.5b-instruct-fp16.gguf?download=true",
+        "model.gguf");
+}
 
-const system_prompt = "The following is a conversation with an AI assistant. The assistant is helpful, creative, clever, and very friendly.";
-const user_prompt = "What is human life expectancy of a duck?";
+download().then(() => {
+    console.log("Downloaded model");
 
-const inference = RunInference("model.gguf", system_prompt, user_prompt);
+    // 0 - none, 1 - debug, 2 - info, 3 - warn, 4 - error
+    SetLogLevel(1); // enable debug
 
-console.log("Inference", inference);
+    const system_prompt = "The following is a conversation with an AI assistant. The assistant is helpful, creative, clever, and very friendly.";
+    const user_prompt = "What is human life expectancy of a duck?";
+
+    const inference = RunInference("model.gguf", system_prompt, user_prompt);
+
+    console.log("Inference", inference);
+});

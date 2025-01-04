@@ -70,16 +70,34 @@ const prompts = [
 ]
 
 const model = await LoadModelAsync("model.gguf");
-console.log("Model loaded\n", model);
+console.log("Model loaded", model);
 
 for (const prompt of prompts) {
     const inference = await RunInferenceAsync(model, system_prompt, prompt, /*optional max tokens*/ 1024);
-    console.log("Answer:\n", inference);
+    console.log("Answer:", inference);
 }
 
 await ReleaseModelAsync(model);
 
 ```
+
+### Model format
+
+Its likely you will want more control over the model, so you can push the complete formatted prompt to it with prefix `!#`, like this:
+
+```javascript
+
+const system = "You are ...";
+const user = "...";
+
+//  QWEN example (prefix !# will get removed before reaching the llm)
+const prompt = `"!#<|im_start|>system ${system}<|im_end|><|im_start|>user ${user}<|im_end|><|im_start|>assistant"`;
+
+const reply = await RunInferenceAsync(modelHandle, prompt, /*optional max token*/ 128)
+
+```
+
+### Logging control
 
 You can control log levels coming from llamacpp like this:
 

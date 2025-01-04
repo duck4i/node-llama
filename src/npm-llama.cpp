@@ -39,10 +39,15 @@ std::string runInference(llama_model *model, const std::string &system_prompt,
         return "";
     }
 
-    // Construct the full prompt
-    std::string full_prompt = "<|im_start|>system " + system_prompt + "<|im_end|>" +
-                              "<|im_start|>user " + user_prompt + "<|im_end|>" +
-                              "<|im_start|>assistant";
+    //  Prepare prompt - we check if the prompt starts with !# to determine if it is a full prompt with instructions
+    //  for chat and multimodal use. If not we default to the llama format prompt.
+    bool isFullPrompt = system_prompt.size() > 2 && system_prompt[0] == '!' && system_prompt[1] == '#';
+
+    std::string llama_format_prompt = "<|im_start|>system " + system_prompt + "<|im_end|>" +
+                                      "<|im_start|>user " + user_prompt + "<|im_end|>" +
+                                      "<|im_start|>assistant";
+
+    std::string full_prompt = isFullPrompt ? user_prompt.substr(2) : llama_format_prompt;
 
     // Tokenize the prompt
     const int n_prompt = -llama_tokenize(model, full_prompt.c_str(), full_prompt.size(),
@@ -143,7 +148,7 @@ void releaseModel(llama_model *model)
 // SYNC
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-Napi::Value SetLogLevel(const Napi::CallbackInfo& info)
+Napi::Value SetLogLevel(const Napi::CallbackInfo &info)
 {
     Napi::Env env = info.Env();
 
@@ -341,21 +346,45 @@ Napi::Value RunInferenceAsync(const Napi::CallbackInfo &info)
 {
     Napi::Env env = info.Env();
 
-    if (info.Length() < 3 || !info[0].IsExternal() || !info[1].IsString() ||
-        !info[2].IsString())
+    llama_model *model = nullptr;
+    if (info.Length() >= 1 && info[0].IsExternal())
+    {
+        model = info[0].As<Napi::External<llama_model>>().Data();
+    }
+
+    std::string userPrompt;
+    if (info.Length() >= 2 && info[1].IsString())
+    {
+        userPrompt = info[1].As<Napi::String>().Utf8Value();
+    }
+
+    std::string systemPrompt;
+    if (info.Length() >= 3 && info[2].IsString())
+    {
+        systemPrompt = info[2].As<Napi::String>().Utf8Value();
+        if (userPrompt.length() > 2 && userPrompt[0] == '!' && userPrompt[1] == '#')
+        {
+            Napi::TypeError::New(env, "Prompt contains `!#`, system prompt with full prompt format is not allowed.").ThrowAsJavaScriptException();
+            return env.Undefined();
+        }
+    }
+
+    int maxTokens = 1024;
+    //   (model, userPrompt, maxTokens)
+    if (info.Length() == 3 && info[2].IsNumber())
+    {
+        maxTokens = info[3].As<Napi::Number>().Int32Value();
+    }
+    //  (model, userPrompt, systemPrompt, maxTokens)
+    else if (info.Length() == 4 && info[3].IsNumber())
+    {
+        maxTokens = info[3].As<Napi::Number>().Int32Value();
+    }
+
+    if (info.Length() < 2 || userPrompt.empty())
     {
         Napi::TypeError::New(env, "Invalid arguments").ThrowAsJavaScriptException();
         return env.Undefined();
-    }
-
-    llama_model *model = info[0].As<Napi::External<llama_model>>().Data();
-    std::string systemPrompt = info[1].As<Napi::String>().Utf8Value();
-    std::string userPrompt = info[2].As<Napi::String>().Utf8Value();
-
-    int maxTokens = 1024;
-    if (info.Length() > 3 && info[3].IsNumber())
-    {
-        maxTokens = info[3].As<Napi::Number>().Int32Value();
     }
 
     InferenceWorker *worker = new InferenceWorker(env, model, systemPrompt, userPrompt, maxTokens);
