@@ -15,6 +15,21 @@ if(EXISTS "${CMAKE_BINARY_DIR}/CMakeCache.txt")
     file(REMOVE "${CMAKE_BINARY_DIR}/CMakeCache.txt")
 endif()
 
+# Create and set permissions for runtime output directory before GGML tries to use it
+if(APPLE)
+    # First ensure the directory exists with proper permissions
+    file(MAKE_DIRECTORY "${CMAKE_BINARY_DIR}/bin")
+    execute_process(
+        COMMAND chmod -R 777 "${CMAKE_BINARY_DIR}/bin"
+        RESULT_VARIABLE CHMOD_RESULT
+    )
+    if(NOT CHMOD_RESULT EQUAL "0")
+        message(FATAL_ERROR "Failed to set permissions on ${CMAKE_BINARY_DIR}/bin")
+    endif()
+
+    set(CMAKE_RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/bin")
+endif()
+
 # Configure Metal options
 if(APPLE)
     set(GGML_METAL_EMBED_LIBRARY ON CACHE BOOL "Embed metal library" FORCE)
