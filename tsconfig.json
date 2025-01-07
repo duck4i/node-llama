@@ -1,0 +1,41 @@
+{
+    "compilerOptions": {
+        // Enable latest features
+        "lib": [
+            "ESNext",
+            "DOM"
+        ],
+        "target": "ESNext",
+        "module": "ESNext",
+        "moduleDetection": "auto",
+        "allowJs": false,
+        "esModuleInterop": true,
+        "moduleResolution": "node",
+        "allowImportingTsExtensions": false,
+        "verbatimModuleSyntax": false,
+        "noEmit": false,
+        // Best practices
+        "strict": true,
+        "skipLibCheck": false,
+        "noFallthroughCasesInSwitch": true,
+        // Some stricter flags (disabled by default)
+        "noUnusedLocals": false,
+        "noUnusedParameters": false,
+        "noPropertyAccessFromIndexSignature": false,
+        //  Decl
+        "declaration": true,
+        "declarationMap": true,
+        //  Paths
+        "outDir": "./dist",
+        "rootDir": "./src",
+    },
+    "include": [
+        "src/**/*.ts"
+    ],
+    "exclude": [
+        "node_modules",
+        "dist",
+        "build",
+        "tools"
+    ]
+}

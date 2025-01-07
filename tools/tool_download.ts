@@ -1,8 +1,16 @@
 #!/usr/bin/env node
 
-const { Command } = require('commander');
-const packageInfo = require('./package.json');
-const { downloadModel } = require('./downloadModel');
+import { Command } from 'commander';
+import { downloadModel } from '../src';
+
+// Define the type for package.json
+interface PackageJson {
+    version: string;
+    [key: string]: any;
+}
+
+// Import package.json with type assertion
+const packageInfo = require('../package.json') as PackageJson;
 
 const program = new Command();
 program
@@ -11,7 +19,10 @@ program
     .requiredOption('-p, --path <prompt>', 'Output path');
 
 program.parse(process.argv);
-const options = program.opts();
+const options = program.opts() as {
+    url: string;
+    path: string;
+};
 
 const url = `${options.url}`;
 const target = `${options.path}`;
@@ -24,7 +35,7 @@ downloadModel(url, target)
         console.log('Download completed successfully');
         process.exit(0);
     })
-    .catch((error) => {
+    .catch((error: Error) => {
         console.error('Download failed:', error.message);
         process.exit(1);
     });

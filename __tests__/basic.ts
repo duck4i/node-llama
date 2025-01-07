@@ -1,8 +1,9 @@
-const { execSync } = require('child_process');
-const fs = require('fs');
+import { execSync } from 'child_process';
+import { existsSync } from 'fs';
+import assert from 'assert';
 
-const { ChatManager, Role } = require('../chatManager');
-const {
+import { ChatManager, Role } from '../src/chat';
+import {
     RunInference,
     LoadModelAsync,
     CreateContextAsync,
@@ -11,51 +12,50 @@ const {
     ReleaseModelAsync,
     SetLogLevel,
     GetModelToken,
-} = require("bindings")("npm-llama");
+} from '../src/index';
+
 
 const model = "model.gguf";
 const modelUrl = "https://huggingface.co/Qwen/Qwen2.5-0.5B-Instruct-GGUF/resolve/main/qwen2.5-0.5b-instruct-fp16.gguf?download=true";
-const system_prompt = "The following is a conversation with an AI assistant. The assistant is helpful, creative, clever, and very friendly.";
+const systemPrompt = "The following is a conversation with an AI assistant. The assistant is helpful, creative, clever, and very friendly.";
 
-
-describe('Node LLaMA Test Suite', () => {
+describe("Llama tests - basic", () => {
 
     beforeAll(() => {
-
-        if (!fs.existsSync(model)) {
+        // Setup - Download model if needed
+        if (!existsSync(model)) {
             execSync(`npx llama-download -p ${model} -u ${modelUrl}`, { stdio: 'inherit' });
         } else {
             console.log("Model already downloaded");
         }
-    });
+    })
 
-    test('log level works', () => {
+    test('log level works', async () => {
         SetLogLevel(1); // debug logs
-        expect(true).toBeTruthy();
+        assert.ok(true);
     });
 
-    test('direct inference works', () => {
-        const inference = RunInference(model, "How old can ducks get?", system_prompt);
+    test('direct inference works', async () => {
+        const inference: string = RunInference(model, "How old can ducks get?", systemPrompt);
         console.log("Result", inference);
-        expect(inference.includes('10 years')).toBeTruthy();
+        assert.ok(inference.includes('10 years'));
     });
 
     test('async inference works', async () => {
-
-        const prompts = [
+        const prompts: string[] = [
             "How old can ducks get?",
             "Why are ducks so cool?",
             "Is there a limit on number of ducks I can own?"
-        ]
+        ];
 
         const modelHandle = await LoadModelAsync(model);
         const ctx = await CreateContextAsync(modelHandle);
         console.log("Model loaded", model);
 
         for (const prompt of prompts) {
-            const inference = await RunInferenceAsync(modelHandle, ctx, prompt, system_prompt, 64);
+            const inference: string = await RunInferenceAsync(modelHandle, ctx, prompt, systemPrompt, 64);
             console.log("Reply:", inference);
-            expect(inference.length > 0).toBeTruthy();
+            assert.ok(inference.length > 0);
         }
 
         await ReleaseContextAsync(ctx);
@@ -63,31 +63,30 @@ describe('Node LLaMA Test Suite', () => {
     });
 
     test('custom inference works', async () => {
-
         const user = "How old can ducks get?";
-        const prompt = `"!#<|im_start|>system ${system_prompt}<|im_end|><|im_start|>user ${user}<|im_end|><|im_start|>assistant"`;
+        const prompt = `"!#<|im_start|>system ${systemPrompt}<|im_end|><|im_start|>user ${user}<|im_end|><|im_start|>assistant"`;
 
         const modelHandle = await LoadModelAsync(model);
         const context = await CreateContextAsync(modelHandle);
-        const result = await RunInferenceAsync(modelHandle, context, prompt);
+        const result: string = await RunInferenceAsync(modelHandle, context, prompt);
         await ReleaseContextAsync(context);
         await ReleaseModelAsync(modelHandle);
 
         console.log("Result", result);
-        expect(result.length > 1).toBeTruthy();
+        assert.ok(result.length > 1);
     });
 
-    test('tokens work', async () => {
 
+    test('tokens work', async () => {
         const modelHandle = await LoadModelAsync(model);
         const ctx = await CreateContextAsync(modelHandle);
 
-        const eos = GetModelToken(modelHandle, "EOS");
-        const bos = GetModelToken(modelHandle, "BOS");
-        const eot = GetModelToken(modelHandle, "EOT");
-        const sep = GetModelToken(modelHandle, "SEP");
-        const cls = GetModelToken(modelHandle, "CLS");
-        const nl = GetModelToken(modelHandle, "NL");
+        const eos: string = GetModelToken(modelHandle, "EOS");
+        const bos: string = GetModelToken(modelHandle, "BOS");
+        const eot: string = GetModelToken(modelHandle, "EOT");
+        const sep: string = GetModelToken(modelHandle, "SEP");
+        const cls: string = GetModelToken(modelHandle, "CLS");
+        const nl: string = GetModelToken(modelHandle, "NL");
 
         console.log("EOS", eos);
         console.log("BOS", bos);
@@ -99,9 +98,9 @@ describe('Node LLaMA Test Suite', () => {
         await ReleaseContextAsync(ctx);
         await ReleaseModelAsync(modelHandle);
 
-        expect(eos.length > 1).toBeTruthy();
-        expect(bos.length > 1).toBeTruthy();
-    })
+        assert.ok(eos.length > 1);
+        assert.ok(bos.length > 1);
+    });
 
     test('chat works', async () => {
         SetLogLevel(4); // warn
@@ -109,7 +108,7 @@ describe('Node LLaMA Test Suite', () => {
         const modelHandle = await LoadModelAsync(model);
         const ctx = await CreateContextAsync(modelHandle);
 
-        const chat = new ChatManager(system_prompt);
+        const chat = new ChatManager(systemPrompt);
 
         let reply = "";
         let prompt = chat.getNextPrompt("Hello, my name is Duck!");
@@ -128,8 +127,6 @@ describe('Node LLaMA Test Suite', () => {
         await ReleaseContextAsync(ctx);
         await ReleaseModelAsync(modelHandle);
 
-        expect(reply.includes("Duck")).toBeTruthy();
+        assert.ok(reply.includes("Duck"));
     });
-
-    
 });
