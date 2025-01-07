@@ -1,21 +1,23 @@
 {
   "name": "@duck4i/llama",
-  "version": "0.1.8",
+  "version": "0.2.0",
   "description": "Native Node.JS plugin to run LLAMA inference directly on your machine with no other dependencies. ",
-  "main": "index.js",
-  "module": "index.mjs",
+  "main": "dist/index.js",
+  "types": "./dist/index.d.ts",
+  "type": "module",
   "scripts": {
     "install": "cmake-js compile",
     "rebuild": "cmake-js rebuild",
-    "build": "cmake-js build",
-    "clean": "cmake-js clean",
+    "build": "rm -rf *.tsbuildinfo && tsc && cmake-js build && tsup tools/*.ts",
+    "typecheck": "tsc --noEmit",
+    "clean": "cmake-js clean && rm -rf *.tsbuildinfo && rm -rf dist && rm -rf node_modules",
     "configure": "cmake-js reconfigure",
     "compile": "cmake-js compile",
     "test": "jest"
   },
   "bin": {
-    "llama-download": "./tool_download.js",
-    "llama-run": "./tool_inference.js"
+    "llama-download": "dist/tool_download.cjs",
+    "llama-run": "./dist/tool_inference.cjs"
   },
   "binary": {
     "napi_versions": [
@@ -32,7 +34,9 @@
   "engines": {
     "node": ">=18.0.0"
   },
-  "type": "commonjs",
+  "files": [
+    "dist"
+  ],
   "author": "duck4i",
   "license": "MIT",
   "repository": {
@@ -45,8 +49,16 @@
     "node-addon-api": "^8.3.0"
   },
   "devDependencies": {
+    "@types/commander": "^2.12.5",
+    "@types/jest": "^29.5.14",
+    "@types/node": "^22.10.5",
     "axios": "^1.7.9",
     "commander": "^13.0.0",
-    "jest": "^29.7.0"
+    "jest": "^29.7.0",
+    "tsup": "^8.3.5",
+    "typescript": "^5.7.2"
+  },
+  "publishConfig": {
+    "access": "public"
   }
 }

@@ -1,7 +1,7 @@
 const { execSync } = require('child_process');
 const fs = require('fs');
 
-const { ChatManager, Role } = require('../chatManager');
+const { ChatManager, Role } = require('../dist/chat');
 const {
     RunInference,
     LoadModelAsync,
