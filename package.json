@@ -1,6 +1,6 @@
 {
   "name": "@duck4i/llama",
-  "version": "0.2.2",
+  "version": "0.2.3",
   "description": "Native Node.JS plugin to run LLAMA inference directly on your machine with no other dependencies. ",
   "main": "dist/index.js",
   "types": "./dist/index.d.ts",
@@ -35,7 +35,11 @@
     "node": ">=18.0.0"
   },
   "files": [
-    "dist"
+    "dist",
+    "src/*.cpp",
+    "ggml",
+    "llama",
+    "CMakeLists.txt"
   ],
   "author": "duck4i",
   "license": "MIT",
