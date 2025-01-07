@@ -1,15 +1,20 @@
 {
-  "name": "npm-llama-test",
+  "name": "test_consume",
   "version": "1.0.0",
-  "description": "test for @duck4i/npm-llama",
   "main": "index.js",
-  "type": "commonjs",
   "scripts": {
+    "build" : "tsc",
+    "start" : "bun src/index.ts",
     "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "dependencies": {
+    "@duck4i/llama": "file:.."
   },
   "author": "",
   "license": "ISC",
-  "dependencies": {
-    "@duck4i/llama": "file:.."
+  "description": "",
+  "devDependencies": {
+    "@types/node": "^22.10.5",
+    "typescript": "^5.7.2"
   }
 }

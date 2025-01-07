@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 
 import { Command } from 'commander';
-import { RunInference } from "..";
+import { RunInference } from "../src";
 
 // Define types for the package.json import
 interface PackageInfo {
