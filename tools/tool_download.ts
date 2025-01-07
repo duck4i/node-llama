@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 
 import { Command } from 'commander';
-import { downloadModel } from '../download';
+import { downloadModel } from '..';
 
 // Define the type for package.json
 interface PackageJson {

@@ -1,6 +1,6 @@
 
-import { ChatManager } from "./chat";
-import { downloadModel } from "./download";
+import { ChatManager, Role, type Delimiter, type Message } from "./chat";
+import { downloadModel } from "../src/download";
 
 const npmLlama = require("bindings")("npm-llama");
 
@@ -20,5 +20,6 @@ export const {
 export default {
     ...npmLlama,
     ChatManager,
+    Role,
     downloadModel
 };
