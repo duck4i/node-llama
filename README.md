@@ -46,7 +46,7 @@ sudo apt-get install -y build-essential cmake g++
 
 ```javascript
 
-const { RunInference } = require('@duck4i/llama');
+import { RunInference } = from "@duck4i/llama";
 
 const system_prompt = "The following is a conversation with an AI assistant. The assistant is helpful, creative, clever, and very friendly.";
 const user_prompt = "What is life expectancy of a duck?";
@@ -60,7 +60,7 @@ console.log("Answer", inference);
 It is likely you will want async functions for better memory management with multiple prompts, which is done like this:
 
 ```javascript
-const { LoadModelAsync, CreateContextAsync, RunInferenceAsync, ReleaseContextAsync, ReleaseModelAsync } = require('@duck4i/llama');
+import { LoadModelAsync, CreateContextAsync, RunInferenceAsync, ReleaseContextAsync, ReleaseModelAsync } = from "@duck4i/llama";
 
 const system_prompt = "The following is a conversation with an AI assistant. The assistant is helpful, creative, clever, and very friendly.";
 const prompts = [
@@ -118,7 +118,7 @@ You can control log levels coming from llamacpp like this:
 
 ```javascript
 
-const { SetLogLevel } = require('@duck4i/llama');
+import { SetLogLevel } = from '@duck4i/llama';
 
 // 0 - none, 1 - debug, 2 - info, 3 - warn, 4 - error
 SetLogLevel(1);
