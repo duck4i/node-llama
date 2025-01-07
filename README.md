@@ -42,6 +42,17 @@ Please note that you need CMake and GCC installed if you don't have it already, 
 sudo apt-get install -y build-essential cmake g++
 ```
 
+## Bun 
+
+If you are using BUN to install your packages you will have to add llama to list of trusted dependencies to your `package.json` to ensure the CMake compile pass is executed during the install.
+
+Simply add this:
+```javascript
+  "trustedDependencies": [
+    "@duck4i/llama"
+  ],
+```
+
 ## Usage
 
 ```javascript
