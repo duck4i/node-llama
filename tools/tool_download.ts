@@ -2,19 +2,11 @@
 
 import { Command } from 'commander';
 import { downloadModel } from '../src';
-
-// Define the type for package.json
-interface PackageJson {
-    version: string;
-    [key: string]: any;
-}
-
-// Import package.json with type assertion
-const packageInfo = require('../package.json') as PackageJson;
+import { version } from './version';
 
 const program = new Command();
 program
-    .version(packageInfo.version)
+    .version(version)
     .requiredOption('-u, --url <url>', 'Download URL')
     .requiredOption('-p, --path <prompt>', 'Output path');
 
