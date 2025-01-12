@@ -11,6 +11,7 @@
     "build": "rm -rf *.tsbuildinfo && tsc && cmake-js build && tsup tools/*.ts",
     "typecheck": "tsc --noEmit",
     "clean": "cmake-js clean && rm -rf *.tsbuildinfo && rm -rf dist && rm -rf node_modules && rm -rf build",
+    "publish" : "npm run build && npm publish",
     "configure": "cmake-js reconfigure",
     "compile": "cmake-js compile",
     "test": "jest"
