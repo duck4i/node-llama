@@ -31,7 +31,7 @@ llama_model *loadModel(const std::string &model_path)
     return model;
 }
 
-llama_context *createContext(llama_model *model, int n_ctx = 0, bool flash_attn = true)
+llama_context *createContext(llama_model *model, int n_thread = 1, int n_ctx = 0, bool flash_attn = true)
 {
     if (!model)
     {
@@ -41,8 +41,9 @@ llama_context *createContext(llama_model *model, int n_ctx = 0, bool flash_attn 
 
     llama_context_params ctx_params = llama_context_default_params();
     ctx_params.n_ctx = n_ctx; // 0 means load from model
-    ctx_params.no_perf = false;
+    ctx_params.no_perf = true;
     ctx_params.flash_attn = flash_attn;
+    ctx_params.n_threads = n_thread;
 
     llama_context *ctx = llama_new_context_with_model(model, ctx_params);
     if (!ctx)
@@ -182,41 +183,98 @@ Napi::Value SetLogLevel(const Napi::CallbackInfo &info)
     return env.Undefined();
 }
 
-Napi::Value RunInference(const Napi::CallbackInfo &info)
+struct RunInferenceOptions
+{
+    std::string modelPath;
+    std::string prompt;
+    std::string systemPrompt;
+    int maxTokens = 1024;
+    int threads = 1;
+    int seed = LLAMA_DEFAULT_SEED;
+    int nCtx = 0;
+    bool flashAttention = true;
+};
+
+RunInferenceOptions ParseRunInferenceOptions(const Napi::CallbackInfo &info)
 {
     Napi::Env env = info.Env();
 
-    if (info.Length() < 3 || !info[0].IsString() || !info[1].IsString() || !info[2].IsString())
+    if (info.Length() < 1 || !info[0].IsObject())
     {
-        Napi::TypeError::New(env, "Expected three string arguments").ThrowAsJavaScriptException();
-        return env.Null();
+        Napi::TypeError::New(env, "Expected an options object").ThrowAsJavaScriptException();
+        return {};
     }
 
-    std::string model_path = info[0].As<Napi::String>().Utf8Value();
-    std::string prompt = info[1].As<Napi::String>().Utf8Value();
-    std::string system_prompt = info[2].As<Napi::String>().Utf8Value();
+    Napi::Object optionsObj = info[0].As<Napi::Object>();
+    RunInferenceOptions options;
 
-    int maxTokens = 1024;
-    if (info.Length() == 4 && info[3].IsNumber())
+    if (optionsObj.Has("modelPath") && optionsObj.Get("modelPath").IsString())
     {
-        maxTokens = info[3].As<Napi::Number>().Int32Value();
+        options.modelPath = optionsObj.Get("modelPath").As<Napi::String>().Utf8Value();
+    }
+    else
+    {
+        Napi::TypeError::New(env, "modelPath is required and should be a string").ThrowAsJavaScriptException();
+        return {};
     }
 
-    int seed = LLAMA_DEFAULT_SEED;
-    if (info.Length() == 5 && info[4].IsNumber())
+    if (optionsObj.Has("prompt") && optionsObj.Get("prompt").IsString())
     {
-        seed = info[4].As<Napi::Number>().Int32Value();
+        options.prompt = optionsObj.Get("prompt").As<Napi::String>().Utf8Value();
     }
+    else
+    {
+        Napi::TypeError::New(env, "prompt is required and should be a string").ThrowAsJavaScriptException();
+        return {};
+    }
+
+    if (optionsObj.Has("systemPrompt") && optionsObj.Get("systemPrompt").IsString())
+    {
+        options.systemPrompt = optionsObj.Get("systemPrompt").As<Napi::String>().Utf8Value();
+    }
+
+    if (optionsObj.Has("maxTokens") && optionsObj.Get("maxTokens").IsNumber())
+    {
+        options.maxTokens = optionsObj.Get("maxTokens").As<Napi::Number>().Int32Value();
+    }
+
+    if (optionsObj.Has("threads") && optionsObj.Get("threads").IsNumber())
+    {
+        options.threads = optionsObj.Get("threads").As<Napi::Number>().Int32Value();
+    }
+
+    if (optionsObj.Has("seed") && optionsObj.Get("seed").IsNumber())
+    {
+        options.seed = optionsObj.Get("seed").As<Napi::Number>().Int32Value();
+    }
+
+    if (optionsObj.Has("nCtx") && optionsObj.Get("nCtx").IsNumber())
+    {
+        options.nCtx = optionsObj.Get("nCtx").As<Napi::Number>().Int32Value();
+    }
+
+    if (optionsObj.Has("flashAttention") && optionsObj.Get("flashAttention").IsBoolean())
+    {
+        options.flashAttention = optionsObj.Get("flashAttention").As<Napi::Boolean>().Value();
+    }
+
+    return options;
+}
+
+Napi::Value RunInference(const Napi::CallbackInfo &info)
+{
+    Napi::Env env = info.Env();
+    RunInferenceOptions options = ParseRunInferenceOptions(info);
 
     std::string response;
 
-    llama_model *model = loadModel(model_path);
+    llama_model *model = loadModel(options.modelPath);
     if (model != nullptr)
     {
-        llama_context *ctx = createContext(model);
+        llama_context *ctx = createContext(model, options.threads, options.nCtx, options.flashAttention);
         if (ctx != nullptr)
         {
-            response = runInference(model, ctx, system_prompt, prompt, maxTokens, seed);
+            response = runInference(model, ctx, options.systemPrompt, options.prompt, options.maxTokens, options.seed);
             releaseContext(ctx);
         }
         releaseModel(model);
@@ -337,13 +395,13 @@ private:
 class CreateContextWorker : public Napi::AsyncWorker
 {
 public:
-    CreateContextWorker(Napi::Env &env, llama_model *model, int n_ctx, bool flash_attn)
-        : Napi::AsyncWorker(env), _model(model), _n_ctx(n_ctx), _flash_attn(flash_attn),
+    CreateContextWorker(Napi::Env &env, llama_model *model, int n_threads, int n_ctx, bool flash_attn)
+        : Napi::AsyncWorker(env), _model(model), _n_threads(n_threads), _n_ctx(n_ctx), _flash_attn(flash_attn),
           _deferred(Napi::Promise::Deferred::New(env)) {}
 
     void Execute() override
     {
-        _context = createContext(_model, _n_ctx, _flash_attn);
+        _context = createContext(_model, _n_threads, _n_ctx, _flash_attn);
         if (_context == nullptr)
         {
             SetError("Failed to create context");
@@ -370,6 +428,7 @@ public:
 private:
     llama_model *_model;
     llama_context *_context;
+    int _n_threads;
     int _n_ctx;
     bool _flash_attn;
     Napi::Promise::Deferred _deferred;
@@ -381,13 +440,14 @@ public:
     InferenceWorker(Napi::Env &env, llama_model *model, llama_context *context,
                     const std::string &systemPrompt,
                     const std::string &userPrompt,
-                    int maxTokens)
+                    int maxTokens, int seed)
         : Napi::AsyncWorker(env),
           _model(model),
           _context(context),
           _systemPrompt(systemPrompt),
           _userPrompt(userPrompt),
           _maxTokens(maxTokens),
+          _seed(seed),
           _deferred(Napi::Promise::Deferred::New(env)) {}
 
     void Execute() override
@@ -398,7 +458,7 @@ public:
             return;
         }
 
-        _result = runInference(_model, _context, _systemPrompt, _userPrompt, _maxTokens);
+        _result = runInference(_model, _context, _systemPrompt, _userPrompt, _maxTokens, _seed);
         if (_result.empty())
         {
             SetError("Failed to run inference");
@@ -427,6 +487,7 @@ private:
     std::string _systemPrompt;
     std::string _userPrompt;
     int _maxTokens;
+    int _seed;
     std::string _result;
     Napi::Promise::Deferred _deferred;
 };
@@ -519,84 +580,155 @@ Napi::Value LoadModelAsync(const Napi::CallbackInfo &info)
     return worker->GetPromise();
 }
 
-Napi::Value CreateContextAsync(const Napi::CallbackInfo &info)
+struct CreateContextOptions
+{
+    llama_model *model;
+    int threads = 1;
+    int nCtx = 0;
+    bool flashAttention = true;
+};
+
+CreateContextOptions ParseCreateContextOptions(const Napi::CallbackInfo &info)
 {
     Napi::Env env = info.Env();
 
-    if (info.Length() < 1 || !info[0].IsExternal())
+    if (info.Length() < 1 || !info[0].IsObject())
     {
-        Napi::TypeError::New(env, "Model handle expected").ThrowAsJavaScriptException();
+        Napi::TypeError::New(env, "Expected an options object").ThrowAsJavaScriptException();
+        return {};
+    }
+
+    Napi::Object optionsObj = info[0].As<Napi::Object>();
+    CreateContextOptions options;
+
+    if (optionsObj.Has("model") && optionsObj.Get("model").IsExternal())
+    {
+        options.model = optionsObj.Get("model").As<Napi::External<llama_model>>().Data();
+    }
+    else
+    {
+        Napi::TypeError::New(env, "model is required and should be an external").ThrowAsJavaScriptException();
+        return {};
+    }
+
+    if (optionsObj.Has("threads") && optionsObj.Get("threads").IsNumber())
+    {
+        options.threads = optionsObj.Get("threads").As<Napi::Number>().Int32Value();
+    }
+
+    if (optionsObj.Has("nCtx") && optionsObj.Get("nCtx").IsNumber())
+    {
+        options.nCtx = optionsObj.Get("nCtx").As<Napi::Number>().Int32Value();
+    }
+
+    if (optionsObj.Has("flashAttention") && optionsObj.Get("flashAttention").IsBoolean())
+    {
+        options.flashAttention = optionsObj.Get("flashAttention").As<Napi::Boolean>().Value();
+    }
+
+    return options;
+}
+
+Napi::Value CreateContextAsync(const Napi::CallbackInfo &info)
+{
+    Napi::Env env = info.Env();
+    CreateContextOptions options = ParseCreateContextOptions(info);
+
+    if (options.model == nullptr)
+    {
+        Napi::TypeError::New(env, "Invalid model handle").ThrowAsJavaScriptException();
         return env.Undefined();
     }
 
-    llama_model *model = info[0].As<Napi::External<llama_model>>().Data();
-    int n_ctx = (info.Length() >= 2 && info[1].IsNumber()) ? info[1].As<Napi::Number>().Int32Value() : 0;
-    bool flash_attn = (info.Length() >= 3 && info[2].IsBoolean()) ? info[2].As<Napi::Boolean>().Value() : true;
-
-    CreateContextWorker *worker = new CreateContextWorker(env, model, n_ctx, flash_attn);
+    CreateContextWorker *worker = new CreateContextWorker(env, options.model, options.threads, options.nCtx, options.flashAttention);
     worker->Queue();
 
     return worker->GetPromise();
 }
 
-Napi::Value RunInferenceAsync(const Napi::CallbackInfo &info)
+struct RunInferenceAsyncOptions
+{
+    llama_model *model;
+    llama_context *context;
+    std::string prompt;
+    std::string systemPrompt;
+    int maxTokens = 1024;
+    int seed = LLAMA_DEFAULT_SEED;
+};
+
+RunInferenceAsyncOptions ParseRunInferenceAsyncOptions(const Napi::CallbackInfo &info)
 {
     Napi::Env env = info.Env();
 
-    llama_model *model = nullptr;
-    if (info.Length() >= 1 && info[0].IsExternal())
+    if (info.Length() < 1 || !info[0].IsObject())
     {
-        model = info[0].As<Napi::External<llama_model>>().Data();
+        Napi::TypeError::New(env, "Expected an options object").ThrowAsJavaScriptException();
+        return {};
     }
 
-    llama_context *context = nullptr;
-    if (info.Length() >= 2 && info[1].IsExternal())
+    Napi::Object optionsObj = info[0].As<Napi::Object>();
+    RunInferenceAsyncOptions options;
+
+    if (optionsObj.Has("model") && optionsObj.Get("model").IsExternal())
     {
-        context = info[1].As<Napi::External<llama_context>>().Data();
+        options.model = optionsObj.Get("model").As<Napi::External<llama_model>>().Data();
+    }
+    else
+    {
+        Napi::TypeError::New(env, "model is required and should be an external").ThrowAsJavaScriptException();
+        return {};
     }
 
-    if (model == nullptr || context == nullptr)
+    if (optionsObj.Has("context") && optionsObj.Get("context").IsExternal())
     {
-        Napi::TypeError::New(env, "Model and context handles expected").ThrowAsJavaScriptException();
+        options.context = optionsObj.Get("context").As<Napi::External<llama_context>>().Data();
+    }
+    else
+    {
+        Napi::TypeError::New(env, "context is required and should be an external").ThrowAsJavaScriptException();
+        return {};
+    }
+
+    if (optionsObj.Has("prompt") && optionsObj.Get("prompt").IsString())
+    {
+        options.prompt = optionsObj.Get("prompt").As<Napi::String>().Utf8Value();
+    }
+    else
+    {
+        Napi::TypeError::New(env, "prompt is required and should be a string").ThrowAsJavaScriptException();
+        return {};
+    }
+
+    if (optionsObj.Has("systemPrompt") && optionsObj.Get("systemPrompt").IsString())
+    {
+        options.systemPrompt = optionsObj.Get("systemPrompt").As<Napi::String>().Utf8Value();
+    }
+
+    if (optionsObj.Has("maxTokens") && optionsObj.Get("maxTokens").IsNumber())
+    {
+        options.maxTokens = optionsObj.Get("maxTokens").As<Napi::Number>().Int32Value();
+    }
+
+    if (optionsObj.Has("seed") && optionsObj.Get("seed").IsNumber())
+    {
+        options.seed = optionsObj.Get("seed").As<Napi::Number>().Int32Value();
+    }
+
+    return options;
+}
+
+Napi::Value RunInferenceAsync(const Napi::CallbackInfo &info)
+{
+    Napi::Env env = info.Env();
+    RunInferenceAsyncOptions options = ParseRunInferenceAsyncOptions(info);
+
+    if (options.model == nullptr || options.context == nullptr || options.prompt.empty())
+    {
+        Napi::TypeError::New(env, "Invalid options object").ThrowAsJavaScriptException();
         return env.Undefined();
     }
 
-    std::string userPrompt;
-    if (info.Length() >= 3 && info[2].IsString())
-    {
-        userPrompt = info[2].As<Napi::String>().Utf8Value();
-    }
-
-    std::string systemPrompt;
-    if (info.Length() >= 4 && info[3].IsString())
-    {
-        systemPrompt = info[3].As<Napi::String>().Utf8Value();
-        if (userPrompt.length() > 3 && userPrompt[0] == '!' && userPrompt[1] == '#')
-        {
-            Napi::TypeError::New(env, "Prompt contains `!#`, system prompt with full prompt format is not allowed.").ThrowAsJavaScriptException();
-            return env.Undefined();
-        }
-    }
-
-    int maxTokens = 1024;
-    //   (model, ctx, userPrompt, maxTokens)
-    if (info.Length() == 5 && info[4].IsNumber())
-    {
-        maxTokens = info[4].As<Napi::Number>().Int32Value();
-    }
-    //  (model, ctx, userPrompt, systemPrompt, maxTokens)
-    else if (info.Length() == 6 && info[5].IsNumber())
-    {
-        maxTokens = info[5].As<Napi::Number>().Int32Value();
-    }
-
-    if (info.Length() < 3 || userPrompt.empty())
-    {
-        Napi::TypeError::New(env, "Invalid arguments, user prompt not set.").ThrowAsJavaScriptException();
-        return env.Undefined();
-    }
-
-    InferenceWorker *worker = new InferenceWorker(env, model, context, systemPrompt, userPrompt, maxTokens);
+    InferenceWorker *worker = new InferenceWorker(env, options.model, options.context, options.systemPrompt, options.prompt, options.maxTokens, options.seed);
     worker->Queue();
 
     return worker->GetPromise();
@@ -642,7 +774,6 @@ Napi::Value ReleaseModelAsync(const Napi::CallbackInfo &info)
 Napi::Object Init(Napi::Env env, Napi::Object exports)
 {
     exports.Set("SetLogLevel", Napi::Function::New(env, SetLogLevel));
-
     exports.Set("GetModelToken", Napi::Function::New(env, GetModelToken));
 
     exports.Set("RunInference", Napi::Function::New(env, RunInference));
@@ -652,6 +783,8 @@ Napi::Object Init(Napi::Env env, Napi::Object exports)
     exports.Set("RunInferenceAsync", Napi::Function::New(env, RunInferenceAsync));
     exports.Set("ReleaseContextAsync", Napi::Function::New(env, ReleaseContextAsync));
     exports.Set("ReleaseModelAsync", Napi::Function::New(env, ReleaseModelAsync));
+
+    exports.Set("LLAMA_DEFAULT_SEED", static_cast<int>(LLAMA_DEFAULT_SEED));
 
     return exports;
 }

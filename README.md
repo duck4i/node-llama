@@ -1,6 +1,6 @@
 # NODE-LLAMA
 
-Run llama cpp locally inside your Node environment. 
+Run llama cpp locally inside your Node environment with ease of Typescript.
 
 # Build Status
 
@@ -26,6 +26,7 @@ Install NPM, download a model, and run it. Simple as.
  
 - Minimal dependencies (mostly CMake and GCC) and no need for external services
 - High performance, full speed of `llamacpp` with a thin layer of Node
+- Multithreading support
 - Supports most LLM models
 - Easy to use API
 - Command line for direct inference and model download
@@ -57,12 +58,20 @@ Simply add this:
 
 ```javascript
 
-import { RunInference } = from "@duck4i/llama";
+import { RunInference, LLAMA_DEFAULT_SEED } = from "@duck4i/llama";
 
 const system_prompt = "The following is a conversation with an AI assistant. The assistant is helpful, creative, clever, and very friendly.";
 const user_prompt = "What is life expectancy of a duck?";
 
-const inference = RunInference("model.gguf", user_prompt, system_prompt, /*[opt] maxTokens*/ 512, /*[opt] seed*/ 12345);
+const inference =  RunInference({
+    modelPath: modelPath,
+    prompt: user_prompt,
+    systemPrompt: system_prompt,
+    seed: LLAMA_DEFAULT_SEED,   /*optional*/
+    threads: 1,                 /*optional*/
+    nCtx: 0,                    /*optional*/
+    flashAttention: true        /*optional*/
+});
 
 console.log("Answer", inference);
 
@@ -81,11 +90,24 @@ const prompts = [
 ]
 
 const model = await LoadModelAsync("model.gguf");
-const ctx = await CreateContextAsync(model, /*[opt] n_ctx*/ 0, /*[opt] flash_att*/ true);
+const ctx = await CreateContextAsync({
+    model: modelHandle,
+    threads: 4,             /*optional*/
+    nCtx: 0,                /*optional*/
+    flashAttention: true,   /*optional*/
+});
+
 console.log("Model loaded", model);
 
 for (const prompt of prompts) {
-    const inference = await RunInferenceAsync(model, ctx, prompt, system_prompt, /*[opt] maxTokens*/ 512);
+    const inference = await RunInferenceAsync({
+        model: modelHandle,
+        context: ctx,
+        prompt: "How old can ducks get?",
+        systemPrompt: systemPrompt,
+        maxTokens: 128,             /*optional*/
+        seed: LLAMA_DEFAULT_SEED    /*optional*/
+    });
     console.log("Answer:", inference);
 }
 
@@ -131,8 +153,7 @@ You can control log levels coming from llamacpp like this:
 
 import { SetLogLevel } = from '@duck4i/llama';
 
-// 0 - none, 1 - debug, 2 - info, 3 - warn, 4 - error
-SetLogLevel(1);
+SetLogLevel(LogLevel.Info);
 
 ```
 
