@@ -4,7 +4,7 @@ import assert from 'assert';
 
 import {
     ChatManager,
-    type Role,
+    Role,
     RunInference,
     LoadModelAsync,
     CreateContextAsync,
