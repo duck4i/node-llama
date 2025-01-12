@@ -34,7 +34,11 @@ const inference = RunInference({
   prompt: options.prompt,
   systemPrompt: options.system,
   threads: parseInt(options.threads),
-  seed: parseInt(options.seed)
+  seed: parseInt(options.seed),
+  onStream: (text: string, done: boolean) => {
+    process.stdout.write(text);
+    if (done) {
+      process.stdout.write("\n");
+    }
+  }
 });
-
-console.log(inference.trim());
