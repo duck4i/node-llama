@@ -1,6 +1,6 @@
 # NODE-LLAMA
 
-Run llama cpp locally inside your Node environment. 
+Run llama cpp locally inside your Node environment with ease of Typescript.
 
 # Build Status
 
@@ -26,6 +26,8 @@ Install NPM, download a model, and run it. Simple as.
  
 - Minimal dependencies (mostly CMake and GCC) and no need for external services
 - High performance, full speed of `llamacpp` with a thin layer of Node
+- Multithreading support
+- Streaming support
 - Supports most LLM models
 - Easy to use API
 - Command line for direct inference and model download
@@ -57,12 +59,21 @@ Simply add this:
 
 ```javascript
 
-import { RunInference } = from "@duck4i/llama";
+import { RunInference, LLAMA_DEFAULT_SEED } = from "@duck4i/llama";
 
 const system_prompt = "The following is a conversation with an AI assistant. The assistant is helpful, creative, clever, and very friendly.";
 const user_prompt = "What is life expectancy of a duck?";
 
-const inference = RunInference("model.gguf", user_prompt, system_prompt, /*optional*/ 512);
+const inference =  RunInference({
+    modelPath: modelPath,
+    prompt: user_prompt,
+    systemPrompt: system_prompt,
+    seed: LLAMA_DEFAULT_SEED,       /*optional*/
+    threads: 1,                     /*optional*/
+    nCtx: 0,                        /*optional*/
+    flashAttention: true,           /*optional*/
+    onStream: (text: string, done: boolean) => {}  /*optional*/
+});
 
 console.log("Answer", inference);
 
@@ -81,11 +92,25 @@ const prompts = [
 ]
 
 const model = await LoadModelAsync("model.gguf");
-const ctx = await CreateContextAsync(model, /*optional n_ctx*/ 0, /*optional flash_att*/ true);
+const ctx = await CreateContextAsync({
+    model: modelHandle,
+    threads: 4,             /*optional*/
+    nCtx: 0,                /*optional*/
+    flashAttention: true,   /*optional*/
+});
+
 console.log("Model loaded", model);
 
 for (const prompt of prompts) {
-    const inference = await RunInferenceAsync(model, ctx, prompt, system_prompt, /*optional max tokens*/ 512);
+    const inference = await RunInferenceAsync({
+        model: modelHandle,
+        context: ctx,
+        prompt: "How old can ducks get?",
+        systemPrompt: systemPrompt,
+        maxTokens: 128,             /*optional*/
+        seed: LLAMA_DEFAULT_SEED    /*optional*/
+        onStream: (text: string, done: boolean) => {}  /*optional*/
+    });
     console.log("Answer:", inference);
 }
 
@@ -96,19 +121,26 @@ await ReleaseModelAsync(model);
 
 ### Model format
 
-Its likely you will want more control over the model, so you can push the complete formatted prompt to it with prefix `!#`, like this:
+The package is designed to handle most of LLaMA models, but its likely you will want more control over the model, so you can push the complete formatted prompt to it with prefix `!#`, like this:
 
 ```javascript
 
 const system = "You are ...";
 const user = "...";
 
-//  QWEN example (prefix !# will get removed before reaching the llm)
+//  QWEN / LLAMA example (prefix !# will get removed before reaching the llm)
 const prompt = `"!#<|im_start|>system ${system}<|im_end|><|im_start|>user ${user}<|im_end|><|im_start|>assistant"`;
 
-const reply = await RunInferenceAsync(modelHandle, prompt, /*optional max token*/ 128)
+const reply = await RunInferenceAsync({
+    prompt: prompt,
+    ...
+})
 
 ```
+
+Please note that once you provide full prompt with a `!#` prefix, the system prompt will have no affect after that.
+
+### Token fetch 
 
 Getting tokens from model is done by `GetModelToken` method.
 
@@ -131,8 +163,7 @@ You can control log levels coming from llamacpp like this:
 
 import { SetLogLevel } = from '@duck4i/llama';
 
-// 0 - none, 1 - debug, 2 - info, 3 - warn, 4 - error
-SetLogLevel(1);
+SetLogLevel(LogLevel.Info);
 
 ```
 
@@ -146,8 +177,8 @@ npx llama-download -u https://huggingface.co/Qwen/Qwen2.5-0.5B-Instruct-GGUF/res
 # Run inference
 npx llama-run -m model.gguf -p "How old can ducks get?"
 
-# Run with system prompt
-npx llama-run -m model.gguf -p "How old can ducks get?" -s "[System prompt...]"
+# Run with system prompt, seed and threads
+npx llama-run -m model.gguf -p "How old can ducks get?" -s "[System prompt...]" -d [seed] -t [threads]
 
 ```
 

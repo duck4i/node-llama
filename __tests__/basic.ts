@@ -2,8 +2,9 @@ import { execSync } from 'child_process';
 import { existsSync } from 'fs';
 import assert from 'assert';
 
-import { ChatManager, Role } from '../src/chat';
 import {
+    ChatManager,
+    Role,
     RunInference,
     LoadModelAsync,
     CreateContextAsync,
@@ -12,10 +13,12 @@ import {
     ReleaseModelAsync,
     SetLogLevel,
     GetModelToken,
+    LLAMA_DEFAULT_SEED,
+    type TokenName,
+    LogLevel
 } from '../src/index';
 
-
-const model = "model.gguf";
+const modelPath = "model.gguf";
 const modelUrl = "https://huggingface.co/Qwen/Qwen2.5-0.5B-Instruct-GGUF/resolve/main/qwen2.5-0.5b-instruct-fp16.gguf?download=true";
 const systemPrompt = "The following is a conversation with an AI assistant. The assistant is helpful, creative, clever, and very friendly.";
 
@@ -23,37 +26,160 @@ describe("Llama tests - basic", () => {
 
     beforeAll(() => {
         // Setup - Download model if needed
-        if (!existsSync(model)) {
-            execSync(`npx llama-download -p ${model} -u ${modelUrl}`, { stdio: 'inherit' });
+        if (!existsSync(modelPath)) {
+            execSync(`npx llama-download -p ${modelPath} -u ${modelUrl}`, { stdio: 'inherit' });
         } else {
             console.log("Model already downloaded");
         }
     })
 
     test('log level works', async () => {
-        SetLogLevel(1); // debug logs
+        SetLogLevel(LogLevel.Info); // debug logs
         assert.ok(true);
     });
 
     test('direct inference works', async () => {
-        const inference: string = RunInference(model, "How old can ducks get?", systemPrompt);
+
+        const inference: string = RunInference({
+            modelPath: modelPath,
+            prompt: "How old can ducks get?",
+            systemPrompt: systemPrompt,
+            seed: LLAMA_DEFAULT_SEED,
+        });
+
         console.log("Result", inference);
         assert.ok(inference.includes('10 years'));
     });
 
+    test('direct inference with seed works', async () => {
+        const inference: string = RunInference({
+            modelPath: modelPath,
+            prompt: "How old can ducks get?",
+            systemPrompt: systemPrompt,
+            seed: 12345,
+        });
+        console.log("Result", inference);
+        assert.ok(inference.includes('ages of two and three'));
+    });
+
+    test('direct inference with multithread', async () => {
+        const inference: string = RunInference({
+            modelPath: modelPath,
+            prompt: "How old can ducks get?",
+            systemPrompt: systemPrompt,
+            threads: 4,
+            seed: 12345,
+        });
+        console.log("Result", inference);
+        assert.ok(inference.includes('ages of two and three'));
+    });
+
+    test('direct inference with streaming works', async () => {
+        let output = "";
+        const inference: string = RunInference({
+            modelPath: modelPath,
+            prompt: "How old can ducks get and explain why?",
+            systemPrompt: systemPrompt,
+            threads: 4,
+            onStream: (text: string) => {
+                output += text;
+                process.stdout.write(output);
+            }
+        });
+        console.log(inference, output);
+        assert.ok(output.length > 0);
+    });
+
     test('async inference works', async () => {
+
+        const modelHandle = await LoadModelAsync(modelPath);
+        const ctx = await CreateContextAsync({
+            model: modelHandle,
+            threads: 4,
+        });
+        console.log("Model loaded", modelPath);
+
+        const inference = await RunInferenceAsync({
+            model: modelHandle,
+            context: ctx,
+            prompt: "How old can ducks get?",
+            systemPrompt: systemPrompt,
+            maxTokens: 128,
+            seed: LLAMA_DEFAULT_SEED
+        });
+
+        console.log("Result", inference);
+        assert.ok(inference.includes('10 years old'));
+    });
+
+    test('async inference works with stream', async () => {
+
+        const modelHandle = await LoadModelAsync(modelPath);
+        const ctx = await CreateContextAsync({
+            model: modelHandle,
+        });
+        console.log("Model loaded", modelPath);
+
+        let output = "";
+        const inference = await RunInferenceAsync({
+            model: modelHandle,
+            context: ctx,
+            prompt: "How old can ducks get?",
+            systemPrompt: systemPrompt,
+            maxTokens: 128,
+            seed: LLAMA_DEFAULT_SEED,
+            onStream: (text: string, done: boolean) => {
+                output += text;
+                process.stdout.write(output);
+            }
+        });
+
+        console.log("Result", inference);
+        assert.ok(inference.includes('10 years old'));
+        assert.ok(output.includes('10 years old'));
+    });
+
+    test('async inference with seed works', async () => {
+
+        const modelHandle = await LoadModelAsync(modelPath);
+        const ctx = await CreateContextAsync({
+            model: modelHandle,
+        });
+        console.log("Model loaded", modelPath);
+
+        const inference = await RunInferenceAsync({
+            model: modelHandle,
+            context: ctx,
+            prompt: "How old can ducks get?",
+            systemPrompt: systemPrompt,
+            seed: 12345
+        });
+
+        console.log("Result", inference);
+        assert.ok(inference.includes('ages of two and three'));
+    });
+
+    test('async inference with multiple requests works', async () => {
         const prompts: string[] = [
             "How old can ducks get?",
             "Why are ducks so cool?",
             "Is there a limit on number of ducks I can own?"
         ];
 
-        const modelHandle = await LoadModelAsync(model);
-        const ctx = await CreateContextAsync(modelHandle);
-        console.log("Model loaded", model);
+        const modelHandle = await LoadModelAsync(modelPath);
+        const ctx = await CreateContextAsync({
+            model: modelHandle,
+        });
+        console.log("Model loaded", modelPath);
 
         for (const prompt of prompts) {
-            const inference: string = await RunInferenceAsync(modelHandle, ctx, prompt, systemPrompt, 64);
+            const inference: string = await RunInferenceAsync({
+                model: modelHandle,
+                context: ctx,
+                prompt: prompt,
+                systemPrompt: systemPrompt,
+                maxTokens: 128,
+            });
             console.log("Reply:", inference);
             assert.ok(inference.length > 0);
         }
@@ -63,12 +189,21 @@ describe("Llama tests - basic", () => {
     });
 
     test('custom inference works', async () => {
-        const user = "How old can ducks get?";
+        const user = "How old can ducks live?";
         const prompt = `"!#<|im_start|>system ${systemPrompt}<|im_end|><|im_start|>user ${user}<|im_end|><|im_start|>assistant"`;
 
-        const modelHandle = await LoadModelAsync(model);
-        const context = await CreateContextAsync(modelHandle);
-        const result: string = await RunInferenceAsync(modelHandle, context, prompt);
+        const modelHandle = await LoadModelAsync(modelPath);
+        const context = await CreateContextAsync({
+            model: modelHandle,
+            threads: 4,
+        });
+        const result: string = await RunInferenceAsync({
+            model: modelHandle,
+            context: context,
+            prompt: prompt,
+            systemPrompt: systemPrompt,
+            seed: LLAMA_DEFAULT_SEED,
+        });
         await ReleaseContextAsync(context);
         await ReleaseModelAsync(modelHandle);
 
@@ -76,10 +211,11 @@ describe("Llama tests - basic", () => {
         assert.ok(result.length > 1);
     });
 
-
     test('tokens work', async () => {
-        const modelHandle = await LoadModelAsync(model);
-        const ctx = await CreateContextAsync(modelHandle);
+        const modelHandle = await LoadModelAsync(modelPath);
+        const ctx = await CreateContextAsync({
+            model: modelHandle,
+        });
 
         const eos: string = GetModelToken(modelHandle, "EOS");
         const bos: string = GetModelToken(modelHandle, "BOS");
@@ -105,21 +241,36 @@ describe("Llama tests - basic", () => {
     test('chat works', async () => {
         SetLogLevel(4); // warn
 
-        const modelHandle = await LoadModelAsync(model);
-        const ctx = await CreateContextAsync(modelHandle);
+        const modelHandle = await LoadModelAsync(modelPath);
+        const ctx = await CreateContextAsync({
+            model: modelHandle,
+        });
 
         const chat = new ChatManager(systemPrompt);
 
         let reply = "";
         let prompt = chat.getNextPrompt("Hello, my name is Duck!");
 
-        reply = await RunInferenceAsync(modelHandle, ctx, prompt, 128);
+        reply = await RunInferenceAsync({
+            model: modelHandle,
+            context: ctx,
+            prompt: prompt,
+            systemPrompt: systemPrompt,
+            maxTokens: 128,
+        });
+
         console.log("Reply", reply);
 
         chat.addMessage(Role.ASSISTANT, reply);
 
         prompt = chat.getNextPrompt("What was my name?");
-        reply = await RunInferenceAsync(modelHandle, ctx, prompt, 128);
+        reply = await RunInferenceAsync({
+            model: modelHandle,
+            context: ctx,
+            prompt: prompt,
+            systemPrompt: systemPrompt,
+            maxTokens: 128,
+        });
         console.log("Reply", reply);
 
         chat.addMessage(Role.ASSISTANT, reply);
@@ -129,4 +280,5 @@ describe("Llama tests - basic", () => {
 
         assert.ok(reply.includes("Duck"));
     });
+
 });
