@@ -83,10 +83,4 @@ export const ReleaseModelAsync = async (model: any): Promise<void> => {
 }
 
 //  Utility functions
-export { ChatManager, downloadModel };
-
-export default {
-    ChatManager,
-    Role,
-    downloadModel
-};
+export { ChatManager, type Role, downloadModel };

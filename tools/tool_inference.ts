@@ -29,7 +29,7 @@ const options = program.opts() as ProgramOptions;
 
 console.log(`Model path: ${options.model}\nUser prompt: ${options.prompt}\nSystem prompt: ${options.system}\n`);
 
-const inference = RunInference({
+RunInference({
   modelPath: options.model,
   prompt: options.prompt,
   systemPrompt: options.system,

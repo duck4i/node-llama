@@ -2,8 +2,9 @@ import { execSync } from 'child_process';
 import { existsSync } from 'fs';
 import assert from 'assert';
 
-import { ChatManager, Role } from '../src/chat';
 import {
+    ChatManager,
+    type Role,
     RunInference,
     LoadModelAsync,
     CreateContextAsync,
