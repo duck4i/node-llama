@@ -56,7 +56,7 @@ llama_context *createContext(llama_model *model, int n_thread = 1, int n_ctx = 0
 }
 
 std::string runInference(llama_model *model, llama_context *ctx, const std::string &system_prompt,
-                         const std::string &user_prompt, int max_tokens = 1024, uint seed = LLAMA_DEFAULT_SEED)
+                         const std::string &user_prompt, int max_tokens = 1024, size_t seed = LLAMA_DEFAULT_SEED)
 {
     if (!model || !ctx)
     {
@@ -190,7 +190,7 @@ struct RunInferenceOptions
     std::string systemPrompt;
     int maxTokens = 1024;
     int threads = 1;
-    uint seed = LLAMA_DEFAULT_SEED;
+    size_t seed = LLAMA_DEFAULT_SEED;
     int nCtx = 0;
     bool flashAttention = true;
 };
@@ -440,7 +440,7 @@ public:
     InferenceWorker(Napi::Env &env, llama_model *model, llama_context *context,
                     const std::string &systemPrompt,
                     const std::string &userPrompt,
-                    int maxTokens, uint seed)
+                    int maxTokens, size_t seed)
         : Napi::AsyncWorker(env),
           _model(model),
           _context(context),
@@ -487,7 +487,7 @@ private:
     std::string _systemPrompt;
     std::string _userPrompt;
     int _maxTokens;
-    uint _seed;
+    size_t _seed;
     std::string _result;
     Napi::Promise::Deferred _deferred;
 };
@@ -653,7 +653,7 @@ struct RunInferenceAsyncOptions
     std::string prompt;
     std::string systemPrompt;
     int maxTokens = 1024;
-    uint seed = LLAMA_DEFAULT_SEED;
+    size_t seed = LLAMA_DEFAULT_SEED;
 };
 
 RunInferenceAsyncOptions ParseRunInferenceAsyncOptions(const Napi::CallbackInfo &info)
