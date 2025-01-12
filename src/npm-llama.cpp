@@ -7,6 +7,13 @@
 
 int g_logLevel = GGML_LOG_LEVEL_WARN;
 
+typedef void (*stream_callback)(const std::string &, bool, void *data);
+typedef struct stream_callback_info
+{
+    stream_callback callback;
+    void *data;
+};
+
 void log(ggml_log_level level, const char *text, void *data)
 {
     if ((level >= g_logLevel && level != GGML_LOG_LEVEL_CONT) && text != nullptr)
@@ -56,7 +63,7 @@ llama_context *createContext(llama_model *model, int n_thread = 1, int n_ctx = 0
 }
 
 std::string runInference(llama_model *model, llama_context *ctx, const std::string &system_prompt,
-                         const std::string &user_prompt, int max_tokens = 1024, size_t seed = LLAMA_DEFAULT_SEED)
+                         const std::string &user_prompt, int max_tokens = 1024, size_t seed = LLAMA_DEFAULT_SEED, stream_callback_info *on_stream = nullptr)
 {
     if (!model || !ctx)
     {
@@ -136,9 +143,20 @@ std::string runInference(llama_model *model, llama_context *ctx, const std::stri
         // Append to generated text
         generated_text.append(buf, n);
 
+        if (on_stream != nullptr)
+        {
+            on_stream->callback(std::string(buf, n), false, on_stream->data);
+        }
+
         // Prepare next batch
         batch = llama_batch_get_one(&new_token_id, 1);
         n_decode += 1;
+    }
+
+    //  Finish the generation
+    if (on_stream != nullptr)
+    {
+        on_stream->callback("", true, on_stream->data);
     }
 
     // Cleanup
@@ -193,6 +211,7 @@ struct RunInferenceOptions
     size_t seed = LLAMA_DEFAULT_SEED;
     int nCtx = 0;
     bool flashAttention = true;
+    Napi::FunctionReference callback;
 };
 
 RunInferenceOptions ParseRunInferenceOptions(const Napi::CallbackInfo &info)
@@ -258,6 +277,11 @@ RunInferenceOptions ParseRunInferenceOptions(const Napi::CallbackInfo &info)
         options.flashAttention = optionsObj.Get("flashAttention").As<Napi::Boolean>().Value();
     }
 
+    if (optionsObj.Has("onStream") && optionsObj.Get("onStream").IsFunction())
+    {
+        options.callback = Napi::Persistent(optionsObj.Get("onStream").As<Napi::Function>());
+    }
+
     return options;
 }
 
@@ -265,6 +289,16 @@ Napi::Value RunInference(const Napi::CallbackInfo &info)
 {
     Napi::Env env = info.Env();
     RunInferenceOptions options = ParseRunInferenceOptions(info);
+
+    stream_callback_info streamInfo;
+    streamInfo.callback = [](const std::string &text, bool done, void *data)
+    {
+        auto callback = static_cast<Napi::FunctionReference *>(data);
+        auto env = callback->Env();
+        Napi::HandleScope scope(env);
+        callback->Call({Napi::String::New(env, text), Napi::Boolean::New(env, done)});
+    };
+    streamInfo.data = &options.callback;
 
     std::string response;
 
@@ -274,7 +308,7 @@ Napi::Value RunInference(const Napi::CallbackInfo &info)
         llama_context *ctx = createContext(model, options.threads, options.nCtx, options.flashAttention);
         if (ctx != nullptr)
         {
-            response = runInference(model, ctx, options.systemPrompt, options.prompt, options.maxTokens, options.seed);
+            response = runInference(model, ctx, options.systemPrompt, options.prompt, options.maxTokens, options.seed, (options.callback.IsEmpty() ? nullptr : &streamInfo));
             releaseContext(ctx);
         }
         releaseModel(model);
@@ -392,6 +426,24 @@ private:
     Napi::Promise::Deferred _deferred;
 };
 
+Napi::Value LoadModelAsync(const Napi::CallbackInfo &info)
+{
+    Napi::Env env = info.Env();
+
+    if (info.Length() < 1 || !info[0].IsString())
+    {
+        Napi::TypeError::New(env, "Model path expected").ThrowAsJavaScriptException();
+        return env.Undefined();
+    }
+
+    std::string modelPath = info[0].As<Napi::String>().Utf8Value();
+
+    LoadModelWorker *worker = new LoadModelWorker(env, modelPath);
+    worker->Queue();
+
+    return worker->GetPromise();
+}
+
 class CreateContextWorker : public Napi::AsyncWorker
 {
 public:
@@ -433,152 +485,6 @@ private:
     bool _flash_attn;
     Napi::Promise::Deferred _deferred;
 };
-
-class InferenceWorker : public Napi::AsyncWorker
-{
-public:
-    InferenceWorker(Napi::Env &env, llama_model *model, llama_context *context,
-                    const std::string &systemPrompt,
-                    const std::string &userPrompt,
-                    int maxTokens, size_t seed)
-        : Napi::AsyncWorker(env),
-          _model(model),
-          _context(context),
-          _systemPrompt(systemPrompt),
-          _userPrompt(userPrompt),
-          _maxTokens(maxTokens),
-          _seed(seed),
-          _deferred(Napi::Promise::Deferred::New(env)) {}
-
-    void Execute() override
-    {
-        if (!_model || !_context)
-        {
-            SetError("Invalid model or context handle");
-            return;
-        }
-
-        _result = runInference(_model, _context, _systemPrompt, _userPrompt, _maxTokens, _seed);
-        if (_result.empty())
-        {
-            SetError("Failed to run inference");
-        }
-    }
-
-    void OnOK() override
-    {
-        Napi::Env env = _deferred.Env();
-        _deferred.Resolve(Napi::String::New(env, _result));
-    }
-
-    void OnError(const Napi::Error &error) override
-    {
-        _deferred.Reject(error.Value());
-    }
-
-    Napi::Promise GetPromise() const
-    {
-        return _deferred.Promise();
-    }
-
-private:
-    llama_model *_model;
-    llama_context *_context;
-    std::string _systemPrompt;
-    std::string _userPrompt;
-    int _maxTokens;
-    size_t _seed;
-    std::string _result;
-    Napi::Promise::Deferred _deferred;
-};
-
-class ReleaseContextWorker : public Napi::AsyncWorker
-{
-public:
-    ReleaseContextWorker(Napi::Env &env, llama_context *context)
-        : Napi::AsyncWorker(env), _context(context), _deferred(Napi::Promise::Deferred::New(env)) {}
-
-    void Execute() override
-    {
-        if (_context)
-        {
-            llama_free(_context);
-        }
-    }
-
-    void OnOK() override
-    {
-        Napi::Env env = _deferred.Env();
-        _deferred.Resolve(env.Undefined());
-    }
-
-    void OnError(const Napi::Error &error) override
-    {
-        _deferred.Reject(error.Value());
-    }
-
-    Napi::Promise GetPromise() const
-    {
-        return _deferred.Promise();
-    }
-
-private:
-    llama_context *_context;
-    Napi::Promise::Deferred _deferred;
-};
-
-class ReleaseModelWorker : public Napi::AsyncWorker
-{
-public:
-    ReleaseModelWorker(Napi::Env &env, llama_model *model)
-        : Napi::AsyncWorker(env), _model(model), _deferred(Napi::Promise::Deferred::New(env)) {}
-
-    void Execute() override
-    {
-        if (_model)
-        {
-            llama_free_model(_model);
-        }
-    }
-
-    void OnOK() override
-    {
-        Napi::Env env = _deferred.Env();
-        _deferred.Resolve(env.Undefined());
-    }
-
-    void OnError(const Napi::Error &error) override
-    {
-        _deferred.Reject(error.Value());
-    }
-
-    Napi::Promise GetPromise() const
-    {
-        return _deferred.Promise();
-    }
-
-private:
-    llama_model *_model;
-    Napi::Promise::Deferred _deferred;
-};
-
-Napi::Value LoadModelAsync(const Napi::CallbackInfo &info)
-{
-    Napi::Env env = info.Env();
-
-    if (info.Length() < 1 || !info[0].IsString())
-    {
-        Napi::TypeError::New(env, "Model path expected").ThrowAsJavaScriptException();
-        return env.Undefined();
-    }
-
-    std::string modelPath = info[0].As<Napi::String>().Utf8Value();
-
-    LoadModelWorker *worker = new LoadModelWorker(env, modelPath);
-    worker->Queue();
-
-    return worker->GetPromise();
-}
 
 struct CreateContextOptions
 {
@@ -646,6 +552,79 @@ Napi::Value CreateContextAsync(const Napi::CallbackInfo &info)
     return worker->GetPromise();
 }
 
+class InferenceWorker : public Napi::AsyncWorker
+{
+public:
+    InferenceWorker(Napi::Env &env, llama_model *model, llama_context *context,
+                    const std::string &systemPrompt,
+                    const std::string &userPrompt,
+                    int maxTokens, size_t seed,
+                    Napi::FunctionReference callback)
+        : Napi::AsyncWorker(env),
+          _model(model),
+          _context(context),
+          _systemPrompt(systemPrompt),
+          _userPrompt(userPrompt),
+          _maxTokens(maxTokens),
+          _seed(seed),
+          _callback(env, callback),
+          _deferred(Napi::Promise::Deferred::New(env))
+    {
+    }
+
+    void Execute() override
+    {
+        if (!_model || !_context)
+        {
+            SetError("Invalid model or context handle");
+            return;
+        }
+
+        stream_callback_info streamInfo;
+        streamInfo.callback = [](const std::string &text, bool done, void *data)
+        {
+            auto callback = static_cast<Napi::FunctionReference *>(data);
+            auto env = callback->Env();
+            Napi::HandleScope scope(env);
+            callback->Call({Napi::String::New(env, text), Napi::Boolean::New(env, done)});
+        };
+        streamInfo.data = &_callback;
+
+        _result = runInference(_model, _context, _systemPrompt, _userPrompt, _maxTokens, _seed, (_callback.IsEmpty() ? nullptr : &streamInfo));
+        if (_result.empty())
+        {
+            SetError("Failed to run inference");
+        }
+    }
+
+    void OnOK() override
+    {
+        Napi::Env env = _deferred.Env();
+        _deferred.Resolve(Napi::String::New(env, _result));
+    }
+
+    void OnError(const Napi::Error &error) override
+    {
+        _deferred.Reject(error.Value());
+    }
+
+    Napi::Promise GetPromise() const
+    {
+        return _deferred.Promise();
+    }
+
+private:
+    llama_model *_model;
+    llama_context *_context;
+    std::string _systemPrompt;
+    std::string _userPrompt;
+    int _maxTokens;
+    size_t _seed;
+    std::string _result;
+    Napi::FunctionReference _callback;
+    Napi::Promise::Deferred _deferred;
+};
+
 struct RunInferenceAsyncOptions
 {
     llama_model *model;
@@ -654,6 +633,7 @@ struct RunInferenceAsyncOptions
     std::string systemPrompt;
     int maxTokens = 1024;
     size_t seed = LLAMA_DEFAULT_SEED;
+    Napi::FunctionReference callback;
 };
 
 RunInferenceAsyncOptions ParseRunInferenceAsyncOptions(const Napi::CallbackInfo &info)
@@ -714,6 +694,11 @@ RunInferenceAsyncOptions ParseRunInferenceAsyncOptions(const Napi::CallbackInfo 
         options.seed = optionsObj.Get("seed").As<Napi::Number>().Uint32Value();
     }
 
+    if (optionsObj.Has("onStream") && optionsObj.Get("onStream").IsFunction())
+    {
+        options.callback = Napi::Persistent(optionsObj.Get("onStream").As<Napi::Function>());
+    }
+
     return options;
 }
 
@@ -728,11 +713,46 @@ Napi::Value RunInferenceAsync(const Napi::CallbackInfo &info)
         return env.Undefined();
     }
 
-    InferenceWorker *worker = new InferenceWorker(env, options.model, options.context, options.systemPrompt, options.prompt, options.maxTokens, options.seed);
+    InferenceWorker *worker = new InferenceWorker(env, options.model, options.context, options.systemPrompt, options.prompt, options.maxTokens, options.seed, std::move(options.callback));
     worker->Queue();
 
     return worker->GetPromise();
 }
+
+class ReleaseContextWorker : public Napi::AsyncWorker
+{
+public:
+    ReleaseContextWorker(Napi::Env &env, llama_context *context)
+        : Napi::AsyncWorker(env), _context(context), _deferred(Napi::Promise::Deferred::New(env)) {}
+
+    void Execute() override
+    {
+        if (_context)
+        {
+            llama_free(_context);
+        }
+    }
+
+    void OnOK() override
+    {
+        Napi::Env env = _deferred.Env();
+        _deferred.Resolve(env.Undefined());
+    }
+
+    void OnError(const Napi::Error &error) override
+    {
+        _deferred.Reject(error.Value());
+    }
+
+    Napi::Promise GetPromise() const
+    {
+        return _deferred.Promise();
+    }
+
+private:
+    llama_context *_context;
+    Napi::Promise::Deferred _deferred;
+};
 
 Napi::Value ReleaseContextAsync(const Napi::CallbackInfo &info)
 {
@@ -751,6 +771,41 @@ Napi::Value ReleaseContextAsync(const Napi::CallbackInfo &info)
 
     return worker->GetPromise();
 }
+
+class ReleaseModelWorker : public Napi::AsyncWorker
+{
+public:
+    ReleaseModelWorker(Napi::Env &env, llama_model *model)
+        : Napi::AsyncWorker(env), _model(model), _deferred(Napi::Promise::Deferred::New(env)) {}
+
+    void Execute() override
+    {
+        if (_model)
+        {
+            llama_free_model(_model);
+        }
+    }
+
+    void OnOK() override
+    {
+        Napi::Env env = _deferred.Env();
+        _deferred.Resolve(env.Undefined());
+    }
+
+    void OnError(const Napi::Error &error) override
+    {
+        _deferred.Reject(error.Value());
+    }
+
+    Napi::Promise GetPromise() const
+    {
+        return _deferred.Promise();
+    }
+
+private:
+    llama_model *_model;
+    Napi::Promise::Deferred _deferred;
+};
 
 Napi::Value ReleaseModelAsync(const Napi::CallbackInfo &info)
 {

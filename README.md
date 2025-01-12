@@ -27,6 +27,7 @@ Install NPM, download a model, and run it. Simple as.
 - Minimal dependencies (mostly CMake and GCC) and no need for external services
 - High performance, full speed of `llamacpp` with a thin layer of Node
 - Multithreading support
+- Streaming support
 - Supports most LLM models
 - Easy to use API
 - Command line for direct inference and model download

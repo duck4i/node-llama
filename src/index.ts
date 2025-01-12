@@ -30,6 +30,7 @@ export interface RunInferenceOptions {
     seed?: number;
     nCtx?: number;
     flashAttention?: boolean;
+    onStream?: (text: string, done: boolean) => void;
 }
 
 export const RunInference = (options: RunInferenceOptions): string => {
@@ -66,6 +67,7 @@ export interface RunInferenceAsyncOptions {
     systemPrompt: string;
     maxTokens?: number;
     seed?: number;
+    onStream?: (text: string, done: boolean) => void;
 }
 
 export const RunInferenceAsync = async (options: RunInferenceAsyncOptions): Promise<string> => {

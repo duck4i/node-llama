@@ -73,6 +73,22 @@ describe("Llama tests - basic", () => {
         assert.ok(inference.includes('ages of two and three'));
     });
 
+    test('direct inference with streaming works', async () => {
+        let output = "";
+        const inference: string = RunInference({
+            modelPath: modelPath,
+            prompt: "How old can ducks get and explain why?",
+            systemPrompt: systemPrompt,
+            threads: 4,
+            onStream: (text: string) => {
+                output += text;
+                process.stdout.write(output);
+            }
+        });
+        console.log(inference, output);
+        assert.ok(output.length > 0);
+    });
+
     test('async inference works', async () => {
 
         const modelHandle = await LoadModelAsync(modelPath);
@@ -88,6 +104,32 @@ describe("Llama tests - basic", () => {
             systemPrompt: systemPrompt,
             maxTokens: 128,
             seed: LLAMA_DEFAULT_SEED
+        });
+
+        console.log("Result", inference);
+        assert.ok(inference.includes('10 years old'));
+    });
+
+    test('async inference works with stream', async () => {
+
+        const modelHandle = await LoadModelAsync(modelPath);
+        const ctx = await CreateContextAsync({
+            model: modelHandle,
+        });
+        console.log("Model loaded", modelPath);
+
+        let output = "";
+        const inference = await RunInferenceAsync({
+            model: modelHandle,
+            context: ctx,
+            prompt: "How old can ducks get?",
+            systemPrompt: systemPrompt,
+            maxTokens: 128,
+            seed: LLAMA_DEFAULT_SEED,
+            onStream: (text: string, done: boolean) => {
+                output += text;
+                process.stdout.write(output);
+            }
         });
 
         console.log("Result", inference);
