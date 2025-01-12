@@ -55,7 +55,7 @@ llama_context *createContext(llama_model *model, int n_ctx = 0, bool flash_attn 
 }
 
 std::string runInference(llama_model *model, llama_context *ctx, const std::string &system_prompt,
-                         const std::string &user_prompt, int max_tokens = 1024)
+                         const std::string &user_prompt, int max_tokens = 1024, int seed = LLAMA_DEFAULT_SEED)
 {
     if (!model || !ctx)
     {
@@ -86,8 +86,10 @@ std::string runInference(llama_model *model, llama_context *ctx, const std::stri
     // Initialize sampler
     auto sparams = llama_sampler_chain_default_params();
     sparams.no_perf = false;
+
+    //  Decide on a mode of the sampler - greedy is deterministic and consistent, distributed is more creative
     llama_sampler *smpl = llama_sampler_chain_init(sparams);
-    llama_sampler_chain_add(smpl, llama_sampler_init_greedy());
+    seed == LLAMA_DEFAULT_SEED ? llama_sampler_chain_add(smpl, llama_sampler_init_greedy()) : llama_sampler_chain_add(smpl, llama_sampler_init_dist(seed));
 
     // Prepare initial batch
     llama_batch batch = llama_batch_get_one(prompt_tokens.data(), prompt_tokens.size());
@@ -193,7 +195,19 @@ Napi::Value RunInference(const Napi::CallbackInfo &info)
     std::string model_path = info[0].As<Napi::String>().Utf8Value();
     std::string prompt = info[1].As<Napi::String>().Utf8Value();
     std::string system_prompt = info[2].As<Napi::String>().Utf8Value();
-    
+
+    int maxTokens = 1024;
+    if (info.Length() == 4 && info[3].IsNumber())
+    {
+        maxTokens = info[3].As<Napi::Number>().Int32Value();
+    }
+
+    int seed = LLAMA_DEFAULT_SEED;
+    if (info.Length() == 5 && info[4].IsNumber())
+    {
+        seed = info[4].As<Napi::Number>().Int32Value();
+    }
+
     std::string response;
 
     llama_model *model = loadModel(model_path);
@@ -202,7 +216,7 @@ Napi::Value RunInference(const Napi::CallbackInfo &info)
         llama_context *ctx = createContext(model);
         if (ctx != nullptr)
         {
-            response = runInference(model, ctx, system_prompt, prompt);
+            response = runInference(model, ctx, system_prompt, prompt, maxTokens, seed);
             releaseContext(ctx);
         }
         releaseModel(model);

@@ -41,6 +41,12 @@ describe("Llama tests - basic", () => {
         assert.ok(inference.includes('10 years'));
     });
 
+    test('direct inference with seed works', async () => {
+        const inference: string = RunInference(model, "How old can ducks get?", systemPrompt, 64, 12345);
+        console.log("Result", inference);
+        assert.ok(inference.includes('ages of two and three'));
+    });
+
     test('async inference works', async () => {
         const prompts: string[] = [
             "How old can ducks get?",

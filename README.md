@@ -62,7 +62,7 @@ import { RunInference } = from "@duck4i/llama";
 const system_prompt = "The following is a conversation with an AI assistant. The assistant is helpful, creative, clever, and very friendly.";
 const user_prompt = "What is life expectancy of a duck?";
 
-const inference = RunInference("model.gguf", user_prompt, system_prompt, /*optional*/ 512);
+const inference = RunInference("model.gguf", user_prompt, system_prompt, /*[opt] maxTokens*/ 512, /*[opt] seed*/ 12345);
 
 console.log("Answer", inference);
 
@@ -81,11 +81,11 @@ const prompts = [
 ]
 
 const model = await LoadModelAsync("model.gguf");
-const ctx = await CreateContextAsync(model, /*optional n_ctx*/ 0, /*optional flash_att*/ true);
+const ctx = await CreateContextAsync(model, /*[opt] n_ctx*/ 0, /*[opt] flash_att*/ true);
 console.log("Model loaded", model);
 
 for (const prompt of prompts) {
-    const inference = await RunInferenceAsync(model, ctx, prompt, system_prompt, /*optional max tokens*/ 512);
+    const inference = await RunInferenceAsync(model, ctx, prompt, system_prompt, /*[opt] maxTokens*/ 512);
     console.log("Answer:", inference);
 }
 
