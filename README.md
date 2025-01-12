@@ -68,10 +68,11 @@ const inference =  RunInference({
     modelPath: modelPath,
     prompt: user_prompt,
     systemPrompt: system_prompt,
-    seed: LLAMA_DEFAULT_SEED,   /*optional*/
-    threads: 1,                 /*optional*/
-    nCtx: 0,                    /*optional*/
-    flashAttention: true        /*optional*/
+    seed: LLAMA_DEFAULT_SEED,       /*optional*/
+    threads: 1,                     /*optional*/
+    nCtx: 0,                        /*optional*/
+    flashAttention: true,           /*optional*/
+    onStream: (text: string, done: boolean) => {}  /*optional*/
 });
 
 console.log("Answer", inference);
@@ -108,6 +109,7 @@ for (const prompt of prompts) {
         systemPrompt: systemPrompt,
         maxTokens: 128,             /*optional*/
         seed: LLAMA_DEFAULT_SEED    /*optional*/
+        onStream: (text: string, done: boolean) => {}  /*optional*/
     });
     console.log("Answer:", inference);
 }

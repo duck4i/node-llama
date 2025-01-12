@@ -94,6 +94,7 @@ describe("Llama tests - basic", () => {
         const modelHandle = await LoadModelAsync(modelPath);
         const ctx = await CreateContextAsync({
             model: modelHandle,
+            threads: 4,
         });
         console.log("Model loaded", modelPath);
 
@@ -134,6 +135,7 @@ describe("Llama tests - basic", () => {
 
         console.log("Result", inference);
         assert.ok(inference.includes('10 years old'));
+        assert.ok(output.includes('10 years old'));
     });
 
     test('async inference with seed works', async () => {

@@ -1,4 +1,5 @@
 #include <napi.h>
+#include <queue>
 #include "llama-cpp.h"
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -8,7 +9,7 @@
 int g_logLevel = GGML_LOG_LEVEL_WARN;
 
 typedef void (*stream_callback)(const std::string &, bool, void *data);
-typedef struct stream_callback_info
+struct stream_callback_info
 {
     stream_callback callback;
     void *data;
@@ -552,23 +553,30 @@ Napi::Value CreateContextAsync(const Napi::CallbackInfo &info)
     return worker->GetPromise();
 }
 
-class InferenceWorker : public Napi::AsyncWorker
+struct StreamData
+{
+    std::string text;
+    bool done;
+};
+
+class InferenceWorker : public Napi::AsyncProgressWorkerBase<StreamData>
 {
 public:
-    InferenceWorker(Napi::Env &env, llama_model *model, llama_context *context,
+    InferenceWorker(const Napi::Object &receiver,
+                    const Napi::Function &callback,
+                    llama_model *model,
+                    llama_context *context,
                     const std::string &systemPrompt,
                     const std::string &userPrompt,
-                    int maxTokens, size_t seed,
-                    Napi::FunctionReference callback)
-        : Napi::AsyncWorker(env),
+                    int maxTokens,
+                    size_t seed)
+        : Napi::AsyncProgressWorkerBase<StreamData>(receiver, callback, "InferenceWorker", {}),
           _model(model),
           _context(context),
           _systemPrompt(systemPrompt),
           _userPrompt(userPrompt),
           _maxTokens(maxTokens),
-          _seed(seed),
-          _callback(env, callback),
-          _deferred(Napi::Promise::Deferred::New(env))
+          _seed(seed)
     {
     }
 
@@ -583,34 +591,47 @@ public:
         stream_callback_info streamInfo;
         streamInfo.callback = [](const std::string &text, bool done, void *data)
         {
-            auto callback = static_cast<Napi::FunctionReference *>(data);
-            auto env = callback->Env();
-            Napi::HandleScope scope(env);
-            callback->Call({Napi::String::New(env, text), Napi::Boolean::New(env, done)});
+            auto worker = static_cast<InferenceWorker *>(data);
+            // Create StreamData on heap as it needs to persist until processed
+            auto progress = new StreamData{text, done};
+            worker->NonBlockingCall(progress);
         };
-        streamInfo.data = &_callback;
+        streamInfo.data = this;
 
-        _result = runInference(_model, _context, _systemPrompt, _userPrompt, _maxTokens, _seed, (_callback.IsEmpty() ? nullptr : &streamInfo));
+        _result = runInference(_model, _context, _systemPrompt, _userPrompt, _maxTokens, _seed, &streamInfo);
+
         if (_result.empty())
         {
             SetError("Failed to run inference");
         }
     }
 
+    void OnWorkProgress(StreamData *data) override
+    {
+        if (data)
+        {
+            // Call the JavaScript callback with the token data
+            Callback().Call({Env().Null(), Napi::String::New(Env(), data->text), Napi::Boolean::New(Env(), data->done)});
+
+            // Clean up the heap-allocated StreamData
+            delete data;
+        }
+    }
+
     void OnOK() override
     {
-        Napi::Env env = _deferred.Env();
-        _deferred.Resolve(Napi::String::New(env, _result));
+        Napi::HandleScope scope(Env());
+        Callback().Call({
+            Env().Null(),                     // error arg
+            Napi::String::New(Env(), _result) // result arg
+        });
     }
 
     void OnError(const Napi::Error &error) override
     {
-        _deferred.Reject(error.Value());
-    }
-
-    Napi::Promise GetPromise() const
-    {
-        return _deferred.Promise();
+        Napi::HandleScope scope(Env());
+        Callback().Call({Napi::String::New(Env(), error.Message()),
+                         Env().Null()});
     }
 
 private:
@@ -621,8 +642,6 @@ private:
     int _maxTokens;
     size_t _seed;
     std::string _result;
-    Napi::FunctionReference _callback;
-    Napi::Promise::Deferred _deferred;
 };
 
 struct RunInferenceAsyncOptions
@@ -713,10 +732,32 @@ Napi::Value RunInferenceAsync(const Napi::CallbackInfo &info)
         return env.Undefined();
     }
 
-    InferenceWorker *worker = new InferenceWorker(env, options.model, options.context, options.systemPrompt, options.prompt, options.maxTokens, options.seed, std::move(options.callback));
+    Napi::Promise::Deferred deferred = Napi::Promise::Deferred::New(env);
+    auto reciever = Napi::Object::New(env);
+
+    auto callback = Napi::Function::New(env, [env, deferred, streamCallback = std::move(options.callback)](const Napi::CallbackInfo &info)
+                                        {
+        // First argument is error, second is either a token or final result
+        if (info[0].IsNull()) {
+            // No error - check if this is a token or final result
+            if (info.Length() > 2 && !info[2].IsUndefined()) {
+                // This is a token (streaming update)
+                if (!streamCallback.IsEmpty()) {
+                    streamCallback.Call({info[1], info[2]});
+                }
+            } else {
+                // This is the final result
+                deferred.Resolve(info[1]);
+            }
+        } else {
+            // Error occurred
+            deferred.Reject(info[0].As<Napi::String>());
+        } }, "InferenceCallback");
+
+    InferenceWorker *worker = new InferenceWorker(reciever, callback, options.model, options.context, options.systemPrompt, options.prompt, options.maxTokens, options.seed);
     worker->Queue();
 
-    return worker->GetPromise();
+    return deferred.Promise();
 }
 
 class ReleaseContextWorker : public Napi::AsyncWorker
