@@ -118,19 +118,26 @@ await ReleaseModelAsync(model);
 
 ### Model format
 
-Its likely you will want more control over the model, so you can push the complete formatted prompt to it with prefix `!#`, like this:
+The package is designed to handle most of LLaMA models, but its likely you will want more control over the model, so you can push the complete formatted prompt to it with prefix `!#`, like this:
 
 ```javascript
 
 const system = "You are ...";
 const user = "...";
 
-//  QWEN example (prefix !# will get removed before reaching the llm)
+//  QWEN / LLAMA example (prefix !# will get removed before reaching the llm)
 const prompt = `"!#<|im_start|>system ${system}<|im_end|><|im_start|>user ${user}<|im_end|><|im_start|>assistant"`;
 
-const reply = await RunInferenceAsync(modelHandle, prompt, /*optional max token*/ 128)
+const reply = await RunInferenceAsync({
+    prompt: prompt,
+    ...
+})
 
 ```
+
+Please note that once you provide full prompt with a `!#` prefix, the system prompt will have no affect after that.
+
+### Token fetch 
 
 Getting tokens from model is done by `GetModelToken` method.
 
@@ -167,8 +174,8 @@ npx llama-download -u https://huggingface.co/Qwen/Qwen2.5-0.5B-Instruct-GGUF/res
 # Run inference
 npx llama-run -m model.gguf -p "How old can ducks get?"
 
-# Run with system prompt
-npx llama-run -m model.gguf -p "How old can ducks get?" -s "[System prompt...]"
+# Run with system prompt, seed and threads
+npx llama-run -m model.gguf -p "How old can ducks get?" -s "[System prompt...]" -d [seed] -t [threads]
 
 ```
 

@@ -143,18 +143,21 @@ describe("Llama tests - basic", () => {
         await ReleaseModelAsync(modelHandle);
     });
 
-    /*
     test('custom inference works', async () => {
-        const user = "How old can ducks get?";
+        const user = "How old can ducks live?";
         const prompt = `"!#<|im_start|>system ${systemPrompt}<|im_end|><|im_start|>user ${user}<|im_end|><|im_start|>assistant"`;
 
-        const modelHandle = await LoadModelAsync(model);
-        const context = await CreateContextAsync(modelHandle);
+        const modelHandle = await LoadModelAsync(modelPath);
+        const context = await CreateContextAsync({
+            model: modelHandle,
+            threads: 4,
+        });
         const result: string = await RunInferenceAsync({
             model: modelHandle,
             context: context,
             prompt: prompt,
             systemPrompt: systemPrompt,
+            seed: LLAMA_DEFAULT_SEED,
         });
         await ReleaseContextAsync(context);
         await ReleaseModelAsync(modelHandle);
@@ -162,7 +165,6 @@ describe("Llama tests - basic", () => {
         console.log("Result", result);
         assert.ok(result.length > 1);
     });
-    */
 
     test('tokens work', async () => {
         const modelHandle = await LoadModelAsync(modelPath);
@@ -233,5 +235,5 @@ describe("Llama tests - basic", () => {
 
         assert.ok(reply.includes("Duck"));
     });
-    
+
 });
